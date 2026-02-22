@@ -30,6 +30,20 @@ jobs:
         timeout-minutes: 5
         run: make lint
 
+  test:
+    runs-on: ubuntu-24.04
+    name: Test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Test
+        shell: bash
+        timeout-minutes: 5
+        run: make test
+
   verify-crd:
     runs-on: ubuntu-24.04
     name: Verify CRD
@@ -49,6 +63,7 @@ jobs:
     name: Build and push images
     needs:
       - lint
+      - test
       - verify-crd
     steps:
       - name: Checkout

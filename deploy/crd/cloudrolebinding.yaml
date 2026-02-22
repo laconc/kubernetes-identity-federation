@@ -203,7 +203,7 @@ spec:
                   type: object
                 type: array
               lastError:
-                description: Optional last error for operator visibility.
+                description: Last error for operator visibility, if there was one.
                 nullable: true
                 type: string
               providers:
