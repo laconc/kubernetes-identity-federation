@@ -3,7 +3,9 @@ mod config;
 mod jwks;
 mod kube_watch;
 
-use anyhow::{Result, anyhow};
+use std::process::exit;
+
+use anyhow::{Context, Result, anyhow};
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
@@ -23,7 +25,7 @@ async fn main() -> Result<()> {
     let path = cfg.jwks_file_path.clone();
     let bytes = tokio::fs::read(&path)
         .await
-        .map_err(|e| anyhow!("failed to read JWKS_FILE_PATH={}: {}", path, e))?;
+        .context(anyhow!("failed to read JWKS_FILE_PATH={}", path))?;
     let jwks = parse_jwks(bytes)?;
     store.set(jwks).await;
 
@@ -36,7 +38,8 @@ async fn main() -> Result<()> {
 
         tokio::spawn(async move {
             if let Err(e) = kube_watch::run_secret_watcher(ns, secret_name, store_clone).await {
-                error!(error=?e, "secret watcher exited");
+                error!("JWKS secret watcher failed: {}", e);
+                exit(1);
             }
         });
 

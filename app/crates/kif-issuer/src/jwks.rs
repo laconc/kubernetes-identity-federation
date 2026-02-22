@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::bail;
+use anyhow::{Result, bail};
 use jsonwebtoken::jwk::JwkSet;
 use tokio::sync::RwLock;
 
@@ -28,7 +28,7 @@ impl JwksStore {
     }
 }
 
-pub fn parse_jwks(bytes: Vec<u8>) -> anyhow::Result<JwkSet> {
+pub fn parse_jwks(bytes: Vec<u8>) -> Result<JwkSet> {
     let jwks_json = str::from_utf8(bytes.as_slice())?;
     let jwks: JwkSet = serde_json::from_str(jwks_json)?;
 

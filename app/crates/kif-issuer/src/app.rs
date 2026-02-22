@@ -7,9 +7,10 @@ use axum::{
 };
 use openidconnect::core::CoreJwsSigningAlgorithm;
 use openidconnect::{
-    AuthUrl, EmptyAdditionalProviderMetadata, IssuerUrl, JsonWebKeySetUrl, ResponseTypes,
+    AuthUrl, EmptyAdditionalProviderMetadata, JsonWebKeySetUrl, ResponseTypes,
     core::{CoreProviderMetadata, CoreResponseType, CoreSubjectIdentifierType},
 };
+use tracing::error;
 
 use crate::{config::IssuerConfig, jwks::JwksStore};
 
@@ -45,12 +46,26 @@ async fn startupz(State(state): State<AppState>) -> impl IntoResponse {
 
 // Serve the OpenID Connect discovery doc.
 async fn openid_discovery_doc(State(state): State<AppState>) -> impl IntoResponse {
-    let issuer = IssuerUrl::new(state.cfg.issuer_url.clone()).unwrap();
-    let auth_url = AuthUrl::new(format!("{}/authorize", state.cfg.issuer_url)).unwrap();
-    let jwks_uri = JsonWebKeySetUrl::new(format!("{}/jwks.json", state.cfg.issuer_url)).unwrap();
+    let err_resp = || (StatusCode::INTERNAL_SERVER_ERROR).into_response();
+
+    let auth_url = match AuthUrl::new(format!("{}/authorize", state.cfg.issuer_url)) {
+        Ok(url) => url,
+        Err(e) => {
+            error!("invalid issuer URL: {}", e);
+            return err_resp();
+        }
+    };
+
+    let jwks_uri = match JsonWebKeySetUrl::new(format!("{}/jwks.json", state.cfg.issuer_url)) {
+        Ok(uri) => uri,
+        Err(e) => {
+            error!("invalid JWKS URI: {}", e);
+            return err_resp();
+        }
+    };
 
     let metadata = CoreProviderMetadata::new(
-        issuer,
+        state.cfg.issuer_url.clone(),
         auth_url,
         jwks_uri,
         vec![ResponseTypes::new(vec![CoreResponseType::IdToken])],
@@ -66,7 +81,7 @@ async fn openid_discovery_doc(State(state): State<AppState>) -> impl IntoRespons
         "public, max-age=3600".parse().unwrap(),
     );
 
-    (headers, Json(metadata))
+    (headers, Json(metadata)).into_response()
 }
 
 // Serve the JWKS data.
@@ -80,7 +95,13 @@ async fn get_jwks(State(state): State<AppState>) -> impl IntoResponse {
                 "public, max-age=300".parse().unwrap(),
             );
 
-            let body = serde_json::to_string(&jwks).expect("JWKS serialization failed");
+            let body = match serde_json::to_string(&jwks) {
+                Ok(body) => body,
+                Err(e) => {
+                    error!("failed to serialize JWKS: {}", e);
+                    return (StatusCode::INTERNAL_SERVER_ERROR).into_response();
+                }
+            };
             (StatusCode::OK, headers, body).into_response()
         }
         None => (StatusCode::SERVICE_UNAVAILABLE).into_response(),
@@ -91,15 +112,18 @@ async fn get_jwks(State(state): State<AppState>) -> impl IntoResponse {
 mod tests {
     use super::*;
     use jsonwebtoken::jwk::JwkSet;
+    use openidconnect::IssuerUrl;
     use reqwest::StatusCode as HttpStatus;
     use std::net::SocketAddr;
     use tokio::net::TcpListener;
 
     fn test_cfg(base: &str) -> IssuerConfig {
         IssuerConfig {
-            issuer_url: base.trim_end_matches('/').to_string(),
+            issuer_url: IssuerUrl::new(base.to_string()).unwrap(),
             running_in_cluster: false,
-            ..Default::default()
+            port: 0,
+            jwks_secret_name: "".to_string(),
+            jwks_file_path: "".to_string(),
         }
     }
 
@@ -145,7 +169,7 @@ mod tests {
         let body = r.text().await.unwrap();
         assert!(body.contains(r#""kid":"test-kid""#));
 
-        // discovery doc should include issuer and jwks_uri
+        // Discovery doc should include issuer and jwks_uri
         let r = client
             .get(format!("{}/.well-known/openid-configuration", base))
             .send()
