@@ -63,6 +63,7 @@ jobs:
     name: Build and push images
     needs:
       - lint
+      - test
       - verify-crd
     steps:
       - name: Checkout
