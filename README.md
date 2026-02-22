@@ -11,6 +11,8 @@ and we wanted to support the three major cloud providers: AWS, Azure, and GCP.
 
 ## Getting Started
 
+## Architecture
+
 ## Custom Resource - CloudRoleBinding
 
 Description.

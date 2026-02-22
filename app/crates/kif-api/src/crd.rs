@@ -154,7 +154,7 @@ pub struct CloudRoleBindingStatus {
     #[serde(default)]
     pub conditions: Vec<Condition>,
 
-    /// Optional last error for operator visibility.
+    /// Last error for operator visibility, if there was one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
 }
@@ -163,7 +163,6 @@ pub struct CloudRoleBindingStatus {
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
     pub r#type: ConditionType,
-
     pub status: ConditionStatus,
 
     /// Generation observed when the condition was set.

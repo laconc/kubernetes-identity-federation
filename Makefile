@@ -7,7 +7,7 @@ VERSION := $(shell cd app; cargo metadata --no-deps --format-version=1 | jq -r '
 
 IMAGE_CRATES := kif-agent kif-federation kif-issuer kif-webhook
 
-.PHONY: build-image crdgen verify-crd lint
+.PHONY: build-image crdgen lint test verify-crd
 
 build-image:
 	docker build \
@@ -36,3 +36,6 @@ verify-crd:
 lint:
 	cd app && cargo clippy --all-targets --all-features -- -D warnings
 	cd app && cargo fmt --all -- --check
+
+test:
+	cd app && cargo test --workspace --all-targets

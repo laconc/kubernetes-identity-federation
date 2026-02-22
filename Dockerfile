@@ -11,11 +11,6 @@ RUN addgroup -S appuser -g 2000 && \
 RUN apk update && apk add build-base
 
 COPY ./app ./
-#
-#RUN mkdir src && \
-#    echo "fn main() {}" > src/main.rs && \
-#    cargo build --release && \
-#    rm -r src
 
 RUN cargo build --release -p ${BIN}
 
