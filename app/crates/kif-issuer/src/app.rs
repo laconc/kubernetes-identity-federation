@@ -5,8 +5,12 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use openidconnect::{core::{CoreProviderMetadata, CoreResponseType, CoreSubjectIdentifierType}, AuthUrl, EmptyAdditionalProviderMetadata, IssuerUrl, JsonWebKeySetUrl, ResponseTypes};
 use openidconnect::core::CoreJwsSigningAlgorithm;
+use openidconnect::{
+    AuthUrl, EmptyAdditionalProviderMetadata, IssuerUrl, JsonWebKeySetUrl, ResponseTypes,
+    core::{CoreProviderMetadata, CoreResponseType, CoreSubjectIdentifierType},
+};
+
 use crate::{config::IssuerConfig, jwks::JwksStore};
 
 #[derive(Clone)]
@@ -17,7 +21,10 @@ pub struct AppState {
 
 pub fn router(state: AppState) -> Router {
     Router::new()
-        .route("/.well-known/openid-configuration", get(openid_discovery_doc))
+        .route(
+            "/.well-known/openid-configuration",
+            get(openid_discovery_doc),
+        )
         .route("/jwks.json", get(get_jwks))
         .route("/startupz", get(startupz))
         .route("/livez", get(livez))
@@ -54,7 +61,10 @@ async fn openid_discovery_doc(State(state): State<AppState>) -> impl IntoRespons
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
-    headers.insert(header::CACHE_CONTROL, "public, max-age=3600".parse().unwrap());
+    headers.insert(
+        header::CACHE_CONTROL,
+        "public, max-age=3600".parse().unwrap(),
+    );
 
     (headers, Json(metadata))
 }
