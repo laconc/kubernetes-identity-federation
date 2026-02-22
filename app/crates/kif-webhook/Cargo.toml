@@ -1,0 +1,11 @@
+[package]
+name = "kif-webhook"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description.workspace = true
+
+[dependencies]
