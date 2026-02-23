@@ -4,6 +4,20 @@
 
 **Current cloud support:** AWS (Azure & GCP planned)
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+  - [Components](#components)
+- [Custom Resource - CloudRoleBinding](#custom-resource---cloudrolebinding)
+- [Getting Started](#getting-started)
+  - [Installation](#installation)
+  - [Developer (or platform team) responsibilities](#developer-or-platform-team-responsibilities)
+- [Development](#development)
+  - [TODOs](#todos)
+  - [Lint and run unit tests](#lint-and-run-unit-tests)
+  - [Regenerate the CRD schema](#regenerate-the-crd-schema)
+
 ## Overview
 
 The motivation for this project was to provide [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)-like functionality for Kubernetes clusters running anywhere,
@@ -50,6 +64,10 @@ to make this easier.
     * The `agent` sidecar
     * A projected ServiceAccount token volume
     * The necessary cloud provider token volume mounts and env vars
+
+* CRD: `ResolvedCloudRoleBinding` - Represents the merged config for a given ServiceAccount. This is a status-only
+  CRD that serves as a source of truth for our services, and developers can and should ignore them.
+  * To improve security, we recommend that developers aren't provided access to these at all
 
 **How it all fits together:**
 * The `federation` service owns key lifecycle and token minting
