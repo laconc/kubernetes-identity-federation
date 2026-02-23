@@ -1561,11 +1561,25 @@ dependencies = [
 [[package]]
 name = "kif-agent"
 version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "kif-api",
+ "rand 0.10.0",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "kif-api"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "k8s-openapi",
  "kube",
  "schemars 1.2.1",
@@ -1590,17 +1604,13 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.22.1",
- "futures",
  "jsonwebtoken",
  "k8s-openapi",
  "kif-api",
  "kube",
- "kube-runtime",
  "openidconnect",
  "rand 0.10.0",
- "reqwest 0.13.2",
  "rsa 0.10.0-rc.15",
- "schemars 1.2.1",
  "serde",
  "serde_json",
  "tokio",
@@ -1616,6 +1626,7 @@ dependencies = [
  "axum",
  "futures",
  "k8s-openapi",
+ "kif-api",
  "kube",
  "kube-runtime",
  "openidconnect",
@@ -1764,6 +1775,12 @@ name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "litemap"
@@ -2604,6 +2621,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustix"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
+dependencies = [
+ "bitflags",
+ "errno",
+ "libc",
+ "linux-raw-sys",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "rustls"
 version = "0.23.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3139,6 +3169,19 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0136791f7c95b1f6dd99f9cc786b91bb81c3800b639b3478e561ddb7be95e5f1"
+dependencies = [
+ "fastrand",
+ "getrandom 0.4.1",
+ "once_cell",
+ "rustix",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

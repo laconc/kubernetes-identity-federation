@@ -1,12 +1,13 @@
+use std::env;
 use std::sync::Arc;
-use std::{env, fs};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use kube::Client;
 use openidconnect::IssuerUrl;
 use tokio::sync::RwLock;
 
 use crate::{jwt, k8s};
+use kif_api::shared;
 
 const RSA_BITS: usize = 3072;
 
@@ -30,7 +31,7 @@ impl AppState {
             .context("ISSUER_URL is required")
             .and_then(|s| IssuerUrl::new(s).context("invalid ISSUER_URL"))?;
 
-        let port: u16 = env::var("PORT")
+        let port = env::var("PORT")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(5001);
@@ -40,7 +41,7 @@ impl AppState {
         let jwks_secret_name =
             env::var("JWKS_SECRET_NAME").unwrap_or_else(|_| "kif-jwks".to_string());
 
-        let namespace = Self::pod_namespace()?;
+        let namespace = shared::pod_namespace()?;
         let client = Client::try_default().await?;
 
         // Ensure the signing and jwks secrets exist and are properly initialized.
@@ -62,15 +63,5 @@ impl AppState {
             port,
             signing: Arc::new(RwLock::new(signing_material)),
         })
-    }
-
-    fn pod_namespace() -> Result<String> {
-        let path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
-        let ns = fs::read_to_string(path).map_err(|e| anyhow!("read namespace file: {e}"))?;
-        let ns = ns.trim().to_string();
-        if ns.is_empty() {
-            return Err(anyhow!("namespace file empty"));
-        }
-        Ok(ns)
     }
 }

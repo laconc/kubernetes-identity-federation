@@ -18,9 +18,9 @@ async fn main() -> Result<()> {
 
     let state = AppState::from_env().await?;
     let port = state.port;
-    let bind = format!("0.0.0.0:{port}");
-    info!(%bind, "federation listening");
-    let listener = TcpListener::bind(bind).await?;
+    let bind_addr = format!("0.0.0.0:{port}");
+    let listener = TcpListener::bind(&bind_addr).await?;
+    info!(%bind_addr, "federation listening");
     let app: Router = http::router(state);
     axum::serve(listener, app).await?;
     Ok(())

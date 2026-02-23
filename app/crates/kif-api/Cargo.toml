@@ -10,6 +10,7 @@ keywords.workspace = true
 description.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 kube.workspace = true
 k8s-openapi.workspace = true
 serde.workspace = true
