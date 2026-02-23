@@ -24,7 +24,7 @@ fn main() -> Result<()> {
                 .context("Failed to serialize ResolvedCloudRoleBinding CRD to YAML")?
         }
         _ => panic!(
-            "Invalid CRD type: {crd_type}. Use 'CloudRoleBinding' or 'ResolvedCloudRoleBinding'."
+            "Invalid CRD type: {crd_type}. Use 'crb' or 'rcrb'."
         ),
     };
 
