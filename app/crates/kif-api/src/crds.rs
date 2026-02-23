@@ -207,6 +207,82 @@ pub enum ConditionReason {
     Error,
 }
 
+/// ResolvedCloudRoleBinding is the webhook-produced, merged, validated
+/// effective configuration for a single ServiceAccount in a namespace.
+#[derive(CustomResource, Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[kube(
+    group = "64f.dev",
+    version = "v1alpha1",
+    kind = "ResolvedCloudRoleBinding",
+    plural = "resolvedcloudrolebindings",
+    namespaced,
+    status = "ResolvedCloudRoleBindingStatus",
+    shortname = "rcrb"
+)]
+#[kube(
+    printcolumn = r#"{"name":"ServiceAccount","type":"string","jsonPath":".spec.subject.serviceAccountName"}"#,
+    printcolumn = r#"{"name":"Providers","type":"string","jsonPath":".status.providers"}"#,
+    printcolumn = r#"{"name":"Ready","type":"string","jsonPath":".status.conditions[?(@.type=='Ready')].status"}"#
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedCloudRoleBindingSpec {
+    /// The ServiceAccount this resolved binding applies to (same namespace as this resource).
+    pub subject: SubjectRef,
+
+    /// Resolved attributes that will be included in minted provider tokens.
+    ///
+    /// - includeProvenance defaults to true if unset (policy behavior)
+    /// - extra may be merged from multiple CloudRoleBindings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<AttributesSpec>,
+
+    /// Resolved provider configuration for this ServiceAccount.
+    ///
+    /// This is the merged output of all applicable CloudRoleBindings
+    /// after conflict policy is applied.
+    #[serde(default)]
+    pub providers: ProvidersSpec,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedCloudRoleBindingStatus {
+    /// A short, human-friendly summary of configured providers (e.g. "aws,azure").
+    #[serde(default)]
+    pub providers: String,
+
+    /// Conditions reflect merge/validation state computed by the controller.
+    #[serde(default)]
+    pub conditions: Vec<Condition>,
+
+    /// Source CloudRoleBindings that contributed to the resolved config.
+    /// Useful for debugging and traceability.
+    #[serde(default)]
+    pub sources: Vec<CloudRoleBindingRef>,
+
+    /// Hash of the effective resolved config (stable canonicalization recommended).
+    /// Lets you cheaply detect when the effective config changed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub config_hash: Option<String>,
+
+    /// Optional last error for operator visibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudRoleBindingRef {
+    /// Name of the CloudRoleBinding (same namespace).
+    #[schemars(length(min = 1))]
+    pub name: String,
+
+    /// Resource generation observed when it contributed to the resolved config.
+    /// Helps debugging “why didn’t my change apply?”
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<i64>,
+}
+
 fn default_true() -> bool {
     true
 }

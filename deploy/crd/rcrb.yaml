@@ -1,0 +1,253 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: resolvedcloudrolebindings.64f.dev
+spec:
+  group: 64f.dev
+  names:
+    categories: []
+    kind: ResolvedCloudRoleBinding
+    plural: resolvedcloudrolebindings
+    shortNames:
+    - rcrb
+    singular: resolvedcloudrolebinding
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.subject.serviceAccountName
+      name: ServiceAccount
+      type: string
+    - jsonPath: .status.providers
+      name: Providers
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for ResolvedCloudRoleBindingSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              ResolvedCloudRoleBinding is the webhook-produced, merged, validated
+              effective configuration for a single ServiceAccount in a namespace.
+            properties:
+              attributes:
+                description: |-
+                  Resolved attributes that will be included in minted provider tokens.
+
+                  - includeProvenance defaults to true if unset (policy behavior)
+                  - extra may be merged from multiple CloudRoleBindings
+                nullable: true
+                properties:
+                  extra:
+                    additionalProperties:
+                      type: string
+                    description: Additional attributes to include in minted tokens.
+                    nullable: true
+                    type: object
+                  includeProvenance:
+                    description: |-
+                      Include standard Kubernetes provenance attributes by default.
+
+                      If unset, treated as true.
+                    nullable: true
+                    type: boolean
+                type: object
+              providers:
+                default: {}
+                description: |-
+                  Resolved provider configuration for this ServiceAccount.
+
+                  This is the merged output of all applicable CloudRoleBindings
+                  after conflict policy is applied.
+                properties:
+                  aws:
+                    nullable: true
+                    properties:
+                      audience:
+                        description: Audience to use when minting the AWS token.
+                        minLength: 1
+                        nullable: true
+                        type: string
+                      maxSessionDurationSeconds:
+                        description: Max session duration.
+                        format: uint32
+                        minimum: 0.0
+                        nullable: true
+                        type: integer
+                      region:
+                        description: Default AWS region.
+                        minLength: 1
+                        nullable: true
+                        type: string
+                      roleArn:
+                        description: IAM Role ARN to assume via STS AssumeRoleWithWebIdentity.
+                        minLength: 1
+                        pattern: ^arn:aws:iam::\d{12}:role\/.+$
+                        type: string
+                      stsRegionalEndpoints:
+                        default: true
+                        description: If true, inject AWS_STS_REGIONAL_ENDPOINTS=regional.
+                        type: boolean
+                    required:
+                    - roleArn
+                    type: object
+                  azure:
+                    nullable: true
+                    properties:
+                      audience:
+                        description: Audience to use when minting the Azure token.
+                        minLength: 1
+                        nullable: true
+                        type: string
+                      clientId:
+                        description: Client/app UUID (or managed identity client ID.)
+                        minLength: 1
+                        pattern: ^[0-9a-fA-F-]{36}$
+                        type: string
+                      tenantId:
+                        description: Entra tenant UUID.
+                        minLength: 1
+                        pattern: ^[0-9a-fA-F-]{36}$
+                        type: string
+                    required:
+                    - clientId
+                    - tenantId
+                    type: object
+                  gcp:
+                    nullable: true
+                    properties:
+                      audience:
+                        description: Audience to use when minting the GCP token.
+                        minLength: 1
+                        nullable: true
+                        type: string
+                      projectId:
+                        minLength: 1
+                        nullable: true
+                        type: string
+                      serviceAccountEmail:
+                        description: GCP service account email.
+                        minLength: 1
+                        pattern: ^[^@\s]+@[^@\s]+\.iam\.gserviceaccount\.com$
+                        type: string
+                      workloadIdentityProvider:
+                        description: Full resource name of the Workload Identity Provider.
+                        minLength: 1
+                        type: string
+                    required:
+                    - serviceAccountEmail
+                    - workloadIdentityProvider
+                    type: object
+                type: object
+              subject:
+                description: The ServiceAccount this resolved binding applies to (same namespace as this resource).
+                properties:
+                  serviceAccountName:
+                    description: ServiceAccount in the same namespace.
+                    minLength: 1
+                    type: string
+                required:
+                - serviceAccountName
+                type: object
+            required:
+            - subject
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                default: []
+                description: Conditions reflect merge/validation state computed by the controller.
+                items:
+                  properties:
+                    lastTransitionTime:
+                      description: RFC3339 timestamp of last transition.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human-readable message with details about the transition.
+                      minLength: 1
+                      type: string
+                    observedGeneration:
+                      description: Generation observed when the condition was set.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: Machine-readable reason.
+                      enum:
+                      - Validated
+                      - ProviderConflict
+                      - AttributeConflict
+                      - ValidationFailed
+                      - Error
+                      type: string
+                    status:
+                      enum:
+                      - 'True'
+                      - 'False'
+                      - Unknown
+                      type: string
+                    type:
+                      enum:
+                      - Ready
+                      - Conflict
+                      - InvalidSpec
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - observedGeneration
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              configHash:
+                description: |-
+                  Hash of the effective resolved config (stable canonicalization recommended).
+                  Lets you cheaply detect when the effective config changed.
+                nullable: true
+                type: string
+              lastError:
+                description: Optional last error for operator visibility.
+                nullable: true
+                type: string
+              providers:
+                default: ''
+                description: A short, human-friendly summary of configured providers (e.g. "aws,azure").
+                type: string
+              sources:
+                default: []
+                description: |-
+                  Source CloudRoleBindings that contributed to the resolved config.
+                  Useful for debugging and traceability.
+                items:
+                  properties:
+                    generation:
+                      description: |-
+                        Resource generation observed when it contributed to the resolved config.
+                        Helps debugging “why didn’t my change apply?”
+                      format: int64
+                      nullable: true
+                      type: integer
+                    name:
+                      description: Name of the CloudRoleBinding (same namespace).
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        title: ResolvedCloudRoleBinding
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+

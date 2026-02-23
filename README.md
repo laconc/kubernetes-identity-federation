@@ -2,7 +2,7 @@
 
 **_Note: This project is under active development. Features and behavior may change frequently._**
 
-Current cloud support: AWS (Azure & GCP planned)
+**Current cloud support:** AWS (Azure & GCP planned)
 
 ## Overview
 
@@ -51,7 +51,7 @@ to make this easier.
     * A projected ServiceAccount token volume
     * The necessary cloud provider token volume mounts and env vars
 
-*How it all fits together:*
+**How it all fits together:**
 * The `federation` service owns key lifecycle and token minting
 * The `issuer` serves the public OIDC discovery + JWKS so cloud providers can verify the minted tokens
 * The `webhook` service injects the right plumbing into Pods based on the `CloudRoleBindings`
@@ -61,7 +61,7 @@ to make this easier.
 
 CloudRoleBinding binds a Kubernetes ServiceAccount to one or more cloud identities.
 
-This example provides a small sample of the configuration options available. The full schema is available in the [CRD manifest](deploy/crd/cloudrolebinding.yaml).
+This example provides a small sample of the configuration options available. The full schema is available in the [CRD manifest](deploy/crd/crb.yaml).
 ```yaml
 # Example: single CloudRoleBinding configuring all three providers
 apiVersion: 64f.dev/v1alpha1
@@ -127,7 +127,7 @@ make test
 
 ### Regenerate the CRD schema
 
-After making changes to the CRD specs at [app/crates/kif-api/src/crd.rs](app/crates/kif-api/src/crd.rs), you can regenerate the CRD manifest with:
+After making changes to the CRD specs in [app/crates/kif-api/src/crds.rs](app/crates/kif-api/src/crds.rs), you can regenerate the CRD manifests with:
 
 ```shell
 make crdgen

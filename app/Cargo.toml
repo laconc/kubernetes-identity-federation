@@ -11,6 +11,8 @@ repository = "https://github.com/laconc/kubernetes-identity-federation"
 readme = "../README.md"
 keywords = ["kubernetes", "identity", "federation", "oidc"]
 description = """
+Allows Kubernetes workloads to auth and access AWS, Azure, and
+GCP resources using OIDC federation.
 """
 
 [workspace.dependencies]
