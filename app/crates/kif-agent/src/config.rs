@@ -54,7 +54,7 @@ impl AgentConfig {
             .and_then(|v| v.parse().ok())
             .unwrap_or(30);
 
-        let max_jitter_seconds = env::var("JITTER_SECONDS")
+        let max_jitter_seconds = env::var("MAX_JITTER_SECONDS")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(60);

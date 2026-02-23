@@ -131,7 +131,7 @@ More to come.
 * agent sidecar:
   * The refresh loop should differentiate between the initial mint and subsequent refreshes
 * Integration tests through make using an ephemeral kind cluster and localstack for AWS
-* CI: add caching for deps and Docker layers
+* CI: add caching for deps and Docker layers, and build images in parallel
 * Observability: publish metrics and traces, and improve our logging story
 * Azure and GCP support
 * Publish Helm chart to a registry

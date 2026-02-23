@@ -7,10 +7,12 @@ use std::process::exit;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use config::AgentConfig;
-use federation::MintRequest;
+use rand::RngExt;
 use tokio::{net::TcpListener, sync::watch, time::sleep};
 use tracing::{error, info, warn};
+
+use config::AgentConfig;
+use federation::MintRequest;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -61,13 +63,18 @@ async fn refresh_loop(
     let mut first_success = false;
 
     loop {
-        let sa_token = tokio::fs::read_to_string(&cfg.sa_token_path)
-            .await
-            .context(format!(
-                "failed reading ServiceAccount token from {}",
-                cfg.sa_token_path.display()
-            ))?;
-        let sa_token = sa_token.trim();
+        let sa_token = match tokio::fs::read_to_string(&cfg.sa_token_path).await {
+            Ok(token) => token.trim().to_string(),
+            Err(e) => {
+                warn!(
+                    error = ?e,
+                    path = %cfg.sa_token_path.display(),
+                    "failed reading ServiceAccount token; retrying"
+                );
+                sleep(Duration::from_secs(cfg.min_refresh_seconds)).await;
+                continue;
+            }
+        };
         if sa_token.is_empty() {
             warn!("ServiceAccount token file was empty; retrying");
             sleep(Duration::from_secs(cfg.min_refresh_seconds)).await;
@@ -79,7 +86,7 @@ async fn refresh_loop(
             service_account_name: cfg.service_account_name.clone(),
         };
 
-        match federation::mint(&client, &cfg.federation_url, sa_token, req).await {
+        match federation::mint(&client, cfg.federation_url.clone(), sa_token, req).await {
             Ok(resp) => {
                 if let Some(aws) = resp.aws {
                     writer::atomic_write(&cfg.aws_token_path, &aws.token).context(format!(
@@ -130,9 +137,6 @@ fn compute_jitter(max: u64) -> u64 {
     if max == 0 {
         return 0;
     }
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos() as u64)
-        .unwrap_or(0);
-    nanos % (max + 1)
+    let mut rng = rand::rng();
+    rng.random_range(0..=max)
 }

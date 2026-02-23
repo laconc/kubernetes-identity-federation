@@ -24,8 +24,8 @@ pub struct MintedToken {
 
 pub async fn mint(
     client: &reqwest::Client,
-    federation_url: &str,
-    bearer_sa_token: &str,
+    federation_url: String,
+    bearer_sa_token: String,
     req: MintRequest,
 ) -> Result<MintResponse> {
     let url = format!("{}/v1/mint", federation_url.trim_end_matches('/'));
@@ -46,7 +46,7 @@ pub async fn mint(
             let resp = serde_json::from_str(&body).context("failed to parse mint response body")?;
             Ok(resp)
         }
-        _ => bail!("{body}"),
+        _ => bail!("failed to mint request, status {}: {}", status, body),
     }
 }
 
@@ -102,7 +102,7 @@ mod tests {
         let client = reqwest::Client::builder().build()?;
 
         let sa_token = tokio::fs::read_to_string(&sa_token_path).await?;
-        let sa_token = sa_token.trim();
+        let sa_token = sa_token.trim().to_string();
         if sa_token.is_empty() {
             bail!("ServiceAccount token file was empty");
         }
@@ -111,7 +111,7 @@ mod tests {
             namespace,
             service_account_name,
         };
-        let resp = federation::mint(&client, &federation_url, sa_token, req).await?;
+        let resp = federation::mint(&client, federation_url, sa_token, req).await?;
 
         let aws = resp.aws.ok_or_else(|| anyhow!("no AWS token returned"))?;
         writer::atomic_write(&aws_token_path, &aws.token)?;

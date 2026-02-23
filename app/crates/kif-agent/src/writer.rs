@@ -13,14 +13,15 @@ pub fn atomic_write(path: &Path, contents: &str) -> Result<()> {
         ))?;
     }
 
-    let tmp = path.with_extension("tmp");
+    let tmp = path.with_added_extension("tmp");
     let mut f =
         fs::File::create(&tmp).context(format!("failed to create tmp file {}", tmp.display()))?;
     f.write_all(contents.as_bytes()).context(format!(
         "failed to write contents to tmp file {}",
         tmp.display()
     ))?;
-    let _ = f.sync_all();
+    f.sync_all()
+        .context(format!("failed to sync tmp file {}", tmp.display()))?;
 
     fs::rename(&tmp, path).context(format!(
         "failed to rename tmp file {} to {}",
