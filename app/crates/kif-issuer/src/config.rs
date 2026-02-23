@@ -1,6 +1,13 @@
+use crate::jwks::JwksStore;
 use anyhow::{Context, Result, anyhow};
 use openidconnect::IssuerUrl;
 use std::{env, fs};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub cfg: IssuerConfig,
+    pub jwks: JwksStore,
+}
 
 #[derive(Clone, Debug)]
 pub struct IssuerConfig {
@@ -34,7 +41,7 @@ impl IssuerConfig {
         let port = env::var("PORT")
             .ok()
             .and_then(|s| s.parse::<u16>().ok())
-            .unwrap_or(5000);
+            .unwrap_or(5002);
 
         let jwks_secret_name = env::var("JWKS_SECRET_NAME").unwrap_or("kif-jwks".to_string());
 

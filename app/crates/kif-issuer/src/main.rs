@@ -1,5 +1,5 @@
-mod app;
 mod config;
+mod http;
 mod jwks;
 mod kube_watch;
 
@@ -9,8 +9,8 @@ use anyhow::{Context, Result, anyhow};
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
-use app::{AppState, router};
-use config::IssuerConfig;
+use config::{AppState, IssuerConfig};
+use http::router;
 use jwks::{JwksStore, parse_jwks};
 
 #[tokio::main]

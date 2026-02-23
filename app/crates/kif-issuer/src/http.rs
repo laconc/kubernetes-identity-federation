@@ -12,13 +12,7 @@ use openidconnect::{
 };
 use tracing::error;
 
-use crate::{config::IssuerConfig, jwks::JwksStore};
-
-#[derive(Clone)]
-pub struct AppState {
-    pub cfg: IssuerConfig,
-    pub jwks: JwksStore,
-}
+use crate::config::AppState;
 
 pub fn router(state: AppState) -> Router {
     Router::new()
@@ -111,8 +105,9 @@ async fn get_jwks(State(state): State<AppState>) -> impl IntoResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonwebtoken::jwk::JwkSet;
-    use openidconnect::IssuerUrl;
+    use crate::config::IssuerConfig;
+    use crate::jwks::JwksStore;
+    use openidconnect::{IssuerUrl, core::CoreJsonWebKeySet};
     use reqwest::StatusCode as HttpStatus;
     use std::net::SocketAddr;
     use tokio::net::TcpListener;
@@ -130,7 +125,7 @@ mod tests {
     #[tokio::test]
     async fn serves_endpoints() {
         let jwks_json = r#"{"keys":[{"kty":"RSA","kid":"test-kid","e":"AQAB","n":"abc","use":"sig","alg":"RS256"}]}"#;
-        let jwks: JwkSet = serde_json::from_str(jwks_json).unwrap();
+        let jwks: CoreJsonWebKeySet = serde_json::from_str(jwks_json).unwrap();
 
         let jwks_store = JwksStore::new();
         jwks_store.set(jwks).await;
