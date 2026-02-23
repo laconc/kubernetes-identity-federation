@@ -1,3 +1,3 @@
-pub mod crd;
+pub mod crds;
 
-pub use crd::*;
+pub use crds::*;

@@ -24,7 +24,7 @@ ARG VERSION
 
 # OCI labels for provenance
 LABEL org.opencontainers.image.title="${BIN}" \
-      org.opencontainers.image.description="" \
+      org.opencontainers.image.description="Allows Kubernetes workloads to auth and access AWS, Azure, and GCP resources using OIDC federation." \
       org.opencontainers.image.authors="Dashiel Lopez Mendez <hi@64f.dev>" \
       org.opencontainers.image.url="https://github.com/laconc/kubernetes-identity-federation" \
       org.opencontainers.image.source="https://github.com/laconc/kubernetes-identity-federation" \
