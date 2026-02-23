@@ -8,7 +8,8 @@ use k8s_openapi::{
         core::v1::Secret,
     },
 };
-use kube::{Api, Client, api::PostParams};
+use kube::api::{Patch, PatchParams};
+use kube::{Api, Client};
 use rsa::{RsaPrivateKey, pkcs8::EncodePrivateKey};
 
 use crate::jwt::SigningMaterial;
@@ -144,7 +145,7 @@ pub async fn ensure_signing_and_jwks(
         ByteString(kid.into_bytes()),
     );
 
-    let signing = Secret {
+    let signing_secret = Secret {
         metadata: kube::api::ObjectMeta {
             name: Some(signing_secret_name.to_string()),
             ..Default::default()
@@ -154,7 +155,13 @@ pub async fn ensure_signing_and_jwks(
         ..Default::default()
     };
 
-    secrets.create(&PostParams::default(), &signing).await?;
+    secrets
+        .patch(
+            signing_secret_name,
+            &PatchParams::apply("kif-federation").force(),
+            &Patch::Apply(&signing_secret),
+        )
+        .await?;
 
     //  Publish JWKS secret
     let jwks_json = crate::jwt::jwks_json_from_private_pem(&material)?;
@@ -170,22 +177,23 @@ async fn upsert_jwks_secret(secrets: &Api<Secret>, name: &str, jwks_json: String
         ByteString(jwks_json.into_bytes()),
     );
 
-    let desired = Secret {
+    let secret = Secret {
         metadata: kube::api::ObjectMeta {
             name: Some(name.to_string()),
             ..Default::default()
         },
-        type_: Some("Opaque".to_string()),
         data: Some(data),
+        type_: Some("Opaque".to_string()),
         ..Default::default()
     };
 
-    if secrets.get_opt(name).await?.is_some() {
-        secrets
-            .replace(name, &PostParams::default(), &desired)
-            .await?;
-    } else {
-        secrets.create(&PostParams::default(), &desired).await?;
-    }
+    secrets
+        .patch(
+            name,
+            &PatchParams::apply("kif-federation").force(),
+            &Patch::Apply(secret),
+        )
+        .await?;
+
     Ok(())
 }

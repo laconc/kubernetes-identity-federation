@@ -1,6 +1,6 @@
 use std::env;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use kube::CustomResourceExt;
 
 use kif_api::{CloudRoleBinding, ResolvedCloudRoleBinding};
@@ -8,7 +8,7 @@ use kif_api::{CloudRoleBinding, ResolvedCloudRoleBinding};
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        panic!("No CRD specified. Usage: crdgen <crb|rcrb>");
+        bail!("No CRD specified. Usage: crdgen <crb|rcrb>");
     }
 
     let crd_type = &args[1];
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
             serde_yaml::to_string(&crd)
                 .context("Failed to serialize ResolvedCloudRoleBinding CRD to YAML")?
         }
-        _ => panic!("Invalid CRD type: {crd_type}. Use 'crb' or 'rcrb'."),
+        _ => bail!("Invalid CRD type: {crd_type}. Use 'crb' or 'rcrb'."),
     };
 
     println!("{yaml}");
