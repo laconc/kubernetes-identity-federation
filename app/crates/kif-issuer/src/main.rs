@@ -12,6 +12,7 @@ use tracing::{error, info};
 use config::{AppState, IssuerConfig};
 use http::router;
 use jwks::{JwksStore, parse_jwks};
+use kif_api::shared;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,7 +33,7 @@ async fn main() -> Result<()> {
     info!(%path, "loaded JWKS from file");
 
     if cfg.running_in_cluster {
-        let ns = IssuerConfig::pod_namespace()?;
+        let ns = shared::pod_namespace()?;
         let secret_name = cfg.jwks_secret_name.clone();
         let store_clone = store.clone();
 

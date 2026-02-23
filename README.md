@@ -107,9 +107,13 @@ spec:
 With this system, developers are able to simplify cloud auth for their apps and cluster operators have a clear and auditable
 mapping from Kubernetes ServiceAccounts to cloud identities, without needing to manage secrets or long-lived credentials.
 
+More to come.
+
 ### Installation
 
 The recommended way to install is through our Helm chart.
+
+More to come.
 
 ### Developer (or platform team) responsibilities
 
@@ -117,6 +121,24 @@ The recommended way to install is through our Helm chart.
   * Ensure the IAM roles have the appropriate trust relationships and permissions for the workloads
 
 ## Development
+
+### TODOs
+
+* Implement the webhook service
+* Create the Helm chart
+* federation service:
+  * Introduce the key rotation logic
+* agent sidecar:
+  * The refresh loop should differentiate between the initial mint and subsequent refreshes
+* Integration tests through make using an ephemeral kind cluster and localstack for AWS
+* CI: add caching for deps and Docker layers
+* Observability: publish metrics and traces, and improve our logging story
+* Azure and GCP support
+* Publish Helm chart to a registry
+* Better documentation around the architecture, installation, and using the CRDs
+* Once code complete, audit for security and coding best practices. And address the opportunities for code reuse.
+* For HA, should we use a kv store? We should avoid leader election.
+* We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
 
 ### Lint and run unit tests
 

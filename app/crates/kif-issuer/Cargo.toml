@@ -10,6 +10,8 @@ keywords.workspace = true
 description.workspace = true
 
 [dependencies]
+kif-api = { path = "../kif-api" }
+
 anyhow.workspace = true
 axum.workspace = true
 futures.workspace = true
