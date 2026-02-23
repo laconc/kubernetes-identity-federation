@@ -38,4 +38,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # dev deps
 reqwest = { version = "0.13", features = ["json"] }
 tempfile = "3"
-

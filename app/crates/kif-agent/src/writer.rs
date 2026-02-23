@@ -1,5 +1,6 @@
-use anyhow::{Context, Result};
 use std::{fs, io::Write, path::Path};
+
+use anyhow::{Context, Result};
 
 /// Atomically writes the given contents to the specified path. It does this by writing
 /// to a temporary file and then renaming it. We don't want the main containers reading
