@@ -23,9 +23,7 @@ fn main() -> Result<()> {
             serde_yaml::to_string(&crd)
                 .context("Failed to serialize ResolvedCloudRoleBinding CRD to YAML")?
         }
-        _ => panic!(
-            "Invalid CRD type: {crd_type}. Use 'crb' or 'rcrb'."
-        ),
+        _ => panic!("Invalid CRD type: {crd_type}. Use 'crb' or 'rcrb'."),
     };
 
     println!("{yaml}");
