@@ -136,14 +136,8 @@ pub async fn ensure_signing_and_jwks(
     };
 
     let mut data: BTreeMap<String, ByteString> = BTreeMap::new();
-    data.insert(
-        SIGNING_SECRET_KEY_PEM.to_string(),
-        ByteString(pem_bytes),
-    );
-    data.insert(
-        SIGNING_SECRET_KEY_KID.to_string(),
-        ByteString(kid_bytes),
-    );
+    data.insert(SIGNING_SECRET_KEY_PEM.to_string(), ByteString(pem_bytes));
+    data.insert(SIGNING_SECRET_KEY_KID.to_string(), ByteString(kid_bytes));
 
     let signing_secret = Secret {
         metadata: kube::api::ObjectMeta {
@@ -168,40 +162,6 @@ pub async fn ensure_signing_and_jwks(
     upsert_jwks_secret(&secrets, jwks_secret_name, jwks_json).await?;
 
     Ok(material)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_sa_username_valid() {
-        let result = parse_service_account_username("system:serviceaccount:default:my-sa");
-        assert_eq!(
-            result,
-            Some(("default".to_string(), "my-sa".to_string()))
-        );
-    }
-
-    #[test]
-    fn parse_sa_username_wrong_prefix() {
-        assert!(parse_service_account_username("user:admin").is_none());
-        assert!(parse_service_account_username("serviceaccount:default:my-sa").is_none());
-    }
-
-    #[test]
-    fn parse_sa_username_missing_sa_part() {
-        // Only namespace, no SA after second colon
-        assert!(parse_service_account_username("system:serviceaccount:default").is_none());
-    }
-
-    #[test]
-    fn parse_sa_username_empty_parts() {
-        // Empty namespace
-        assert!(parse_service_account_username("system:serviceaccount::my-sa").is_none());
-        // Empty SA
-        assert!(parse_service_account_username("system:serviceaccount:default:").is_none());
-    }
 }
 
 async fn upsert_jwks_secret(secrets: &Api<Secret>, name: &str, jwks_json: String) -> Result<()> {
@@ -230,4 +190,35 @@ async fn upsert_jwks_secret(secrets: &Api<Secret>, name: &str, jwks_json: String
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sa_username_valid() {
+        let result = parse_service_account_username("system:serviceaccount:default:my-sa");
+        assert_eq!(result, Some(("default".to_string(), "my-sa".to_string())));
+    }
+
+    #[test]
+    fn parse_sa_username_wrong_prefix() {
+        assert!(parse_service_account_username("user:admin").is_none());
+        assert!(parse_service_account_username("serviceaccount:default:my-sa").is_none());
+    }
+
+    #[test]
+    fn parse_sa_username_missing_sa_part() {
+        // Only namespace, no SA after second colon
+        assert!(parse_service_account_username("system:serviceaccount:default").is_none());
+    }
+
+    #[test]
+    fn parse_sa_username_empty_parts() {
+        // Empty namespace
+        assert!(parse_service_account_username("system:serviceaccount::my-sa").is_none());
+        // Empty SA
+        assert!(parse_service_account_username("system:serviceaccount:default:").is_none());
+    }
 }

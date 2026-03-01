@@ -78,9 +78,8 @@ pub async fn mint(
 /// a partially-written file.
 pub fn atomic_write(path: &Path, contents: &str) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).with_context(|| {
-            format!("failed to create parent dirs for {}", path.display())
-        })?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create parent dirs for {}", path.display()))?;
     }
 
     let tmp = path.with_added_extension("tmp");
