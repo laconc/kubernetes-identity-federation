@@ -9,7 +9,9 @@ pub struct AgentConfig {
     pub port: u16,
     pub federation_url: String,
     pub service_account_name: String,
+    pub config_hash: String,
     pub namespace: String,
+    pub pod_name: Option<String>,
 
     pub sa_token_path: PathBuf,
     pub aws_token_path: PathBuf,
@@ -32,6 +34,8 @@ impl AgentConfig {
         let service_account_name =
             env::var("SERVICE_ACCOUNT_NAME").context("SERVICE_ACCOUNT_NAME is required")?;
 
+        let config_hash = env::var("CONFIG_HASH").context("CONFIG_HASH is required")?;
+
         let sa_token_path = env::var("SA_TOKEN_PATH")
             .map(PathBuf::from)
             .unwrap_or(PathBuf::from(
@@ -43,6 +47,7 @@ impl AgentConfig {
             .unwrap_or(PathBuf::from("/var/run/kif/aws/token"));
 
         let namespace = shared::pod_namespace()?;
+        let pod_name = env::var("POD_NAME").ok();
 
         let refresh_skew_seconds = env::var("REFRESH_SKEW_SECONDS")
             .ok()
@@ -63,7 +68,9 @@ impl AgentConfig {
             port,
             federation_url,
             service_account_name,
+            config_hash,
             namespace,
+            pod_name,
             sa_token_path,
             aws_token_path,
             refresh_skew_seconds,

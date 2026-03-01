@@ -99,7 +99,7 @@ pub struct AwsProviderSpec {
 
     /// Max session duration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_session_duration_seconds: Option<u32>,
+    pub max_session_duration_seconds: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]

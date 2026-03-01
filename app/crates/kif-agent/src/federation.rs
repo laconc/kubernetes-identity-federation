@@ -1,12 +1,21 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, anyhow};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug)]
+pub enum MintError {
+    ConfigHashMismatch,
+    Other(anyhow::Error),
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MintRequest {
     pub namespace: String,
     pub service_account_name: String,
+    pub config_hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pod_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,7 +36,7 @@ pub async fn mint(
     federation_url: String,
     bearer_sa_token: String,
     req: MintRequest,
-) -> Result<MintResponse> {
+) -> Result<MintResponse, MintError> {
     let url = format!("{}/v1/mint", federation_url.trim_end_matches('/'));
 
     let resp = client
@@ -36,17 +45,25 @@ pub async fn mint(
         .json(&req)
         .send()
         .await
-        .context("send mint request")?;
+        .context("send mint request")
+        .map_err(MintError::Other)?;
 
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
 
     match status {
         StatusCode::OK => {
-            let resp = serde_json::from_str(&body).context("failed to parse mint response body")?;
+            let resp = serde_json::from_str(&body)
+                .context("failed to parse mint response body")
+                .map_err(MintError::Other)?;
             Ok(resp)
         }
-        _ => bail!("failed to mint request, status {}: {}", status, body),
+        StatusCode::CONFLICT => Err(MintError::ConfigHashMismatch),
+        _ => Err(MintError::Other(anyhow!(
+            "failed to mint request, status {}: {}",
+            status,
+            body
+        ))),
     }
 }
 
@@ -96,6 +113,7 @@ mod tests {
         federation_url: String,
         namespace: String,
         service_account_name: String,
+        config_hash: String,
         sa_token_path: PathBuf,
         aws_token_path: PathBuf,
     ) -> Result<()> {
@@ -110,8 +128,12 @@ mod tests {
         let req = federation::MintRequest {
             namespace,
             service_account_name,
+            config_hash,
+            pod_name: None,
         };
-        let resp = federation::mint(&client, federation_url, sa_token, req).await?;
+        let resp = federation::mint(&client, federation_url, sa_token, req)
+            .await
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         let aws = resp.aws.ok_or_else(|| anyhow!("no AWS token returned"))?;
         writer::atomic_write(&aws_token_path, &aws.token)?;
@@ -147,6 +169,7 @@ mod tests {
             format!("http://{}", addr),
             "default".to_string(),
             "app".to_string(),
+            "abc123".to_string(),
             sa_token_path.clone(),
             aws_token_path.clone(),
         )
@@ -164,5 +187,6 @@ mod tests {
         let body = seen.body.lock().await.clone().unwrap();
         assert_eq!(body["namespace"].as_str().unwrap(), "default");
         assert_eq!(body["serviceAccountName"].as_str().unwrap(), "app");
+        assert_eq!(body["configHash"].as_str().unwrap(), "abc123");
     }
 }

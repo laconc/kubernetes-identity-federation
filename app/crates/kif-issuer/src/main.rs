@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
 
     let bind_addr = format!("0.0.0.0:{}", cfg.port.clone());
     let listener = TcpListener::bind(&bind_addr).await?;
-    info!(%bind_addr, "issuer listening");
+    info!(%bind_addr, "issuer server up");
 
     let state = AppState { cfg, jwks: store };
     axum::serve(listener, router(state)).await?;
