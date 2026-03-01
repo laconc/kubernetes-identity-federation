@@ -127,11 +127,11 @@ async fn fail_or_skip(
             resp = resp.deny(message);
             Ok(resp.into_review())
         }
-        AdmissionFailureMode::Skip => {
+        AdmissionFailureMode::Ignore => {
             resp.allowed = true;
 
             let ns = req.namespace.as_deref().unwrap_or("default");
-            let msg = format!("Injection skipped (ADMISSION_FAILURE_MODE=Skip): {message}");
+            let msg = format!("Injection skipped (ADMISSION_FAILURE_MODE=Ignore): {message}");
             let _ = k8s::emit_pod_event(
                 &state.client,
                 ns,

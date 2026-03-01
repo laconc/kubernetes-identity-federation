@@ -1,3 +1,8 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::post;
@@ -8,23 +13,32 @@ use tracing::warn;
 
 use crate::admission::AppState;
 
-pub fn health_router() -> Router {
+pub fn health_router(ready: Arc<AtomicBool>) -> Router {
     Router::new()
-        .route("/livez", get(ok))
-        .route("/startupz", get(ok))
+        .route("/livez", get(livez))
+        .route("/startupz", get(startupz))
+        .with_state(ready)
 }
 
-async fn ok() -> StatusCode {
+async fn livez() -> StatusCode {
     StatusCode::OK
+}
+
+async fn startupz(State(ready): State<Arc<AtomicBool>>) -> StatusCode {
+    if ready.load(Ordering::Relaxed) {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    }
 }
 
 pub fn admission_router(state: AppState) -> Router {
     Router::new()
-        .route("/mutate", post(mutate_handler))
+        .route("/mutate", post(mutate))
         .with_state(state)
 }
 
-async fn mutate_handler(
+async fn mutate(
     State(state): State<AppState>,
     Json(review): Json<AdmissionReview<Pod>>,
 ) -> impl IntoResponse {

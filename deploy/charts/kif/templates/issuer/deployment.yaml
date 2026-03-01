@@ -1,0 +1,56 @@
+{{- $imgRepo := .Values.issuer.image.repository | default .Values.image.repository -}}
+{{- $imgTag := .Values.issuer.image.tag | default .Values.image.tag -}}
+{{- $pullPolicy := .Values.issuer.image.pullPolicy | default .Values.image.pullPolicy -}}
+{{- $psc := .Values.issuer.podSecurityContext | default .Values.podSecurityContext -}}
+{{- $csc := .Values.issuer.containerSecurityContext | default .Values.containerSecurityContext -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kif.fullname" . }}-issuer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: issuer
+spec:
+  replicas: {{ .Values.issuer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kif.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: issuer
+  template:
+    metadata:
+      labels:
+        {{- include "kif.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: issuer
+        {{- with .Values.issuer.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.issuer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.issuer.serviceAccount.name | default (printf "%s-issuer" (include "kif.fullname" .)) }}
+      securityContext:
+        {{- toYaml $psc | nindent 8 }}
+      containers:
+        - name: issuer
+          image: {{ printf "%s/kif-issuer:%s" $imgRepo $imgTag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          securityContext:
+            {{- toYaml $csc | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.issuer.config.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "kif.fullname" . }}-issuer-config
+          volumeMounts:
+            - name: jwks
+              mountPath: /jwks
+      volumes:
+        - name: jwks
+          secret:
+            secretName: {{ .Values.federation.config.jwksSecretName }}
+            optional: true

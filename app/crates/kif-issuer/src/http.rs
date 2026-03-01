@@ -26,11 +26,11 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn livez() -> impl IntoResponse {
+async fn livez() -> StatusCode {
     StatusCode::OK
 }
 
-async fn startupz(State(state): State<AppState>) -> impl IntoResponse {
+async fn startupz(State(state): State<AppState>) -> StatusCode {
     if state.jwks.is_loaded().await {
         StatusCode::OK
     } else {

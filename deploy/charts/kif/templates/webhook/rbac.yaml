@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kif.fullname" . }}-webhook
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+rules:
+  - apiGroups: ["64f.dev"]
+    resources: ["cloudrolebindings", "cloudrolebindings/status"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["64f.dev"]
+    resources: ["resolvedcloudrolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kif.fullname" . }}-webhook
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.webhook.serviceAccount.name | default (printf "%s-webhook" (include "kif.fullname" .)) }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "kif.fullname" . }}-webhook
+  apiGroup: rbac.authorization.k8s.io

@@ -4,7 +4,7 @@ use std::{env, path::PathBuf};
 #[derive(Clone, Debug)]
 pub enum AdmissionFailureMode {
     Fail,
-    Skip,
+    Ignore,
 }
 
 #[derive(Clone, Debug)]
@@ -49,12 +49,14 @@ impl WebhookConfig {
             .as_str()
         {
             "fail" => AdmissionFailureMode::Fail,
-            "skip" => AdmissionFailureMode::Skip,
-            v => anyhow::bail!("invalid ADMISSION_FAILURE_MODE: {v} (expected Fail|Skip)"),
+            "ignore" => AdmissionFailureMode::Ignore,
+            v => anyhow::bail!("invalid ADMISSION_FAILURE_MODE: {v} (expected Fail|Ignore)"),
         };
 
-        let agent_image_tag = env::var("AGENT_IMAGE_TAG").unwrap_or("dev".to_string());
-        let agent_image = format!("kif-agent:{agent_image_tag}");
+        let agent_image = env::var("AGENT_IMAGE").unwrap_or_else(|_| {
+            let tag = env::var("AGENT_IMAGE_TAG").unwrap_or("latest".to_string());
+            format!("kif-agent:{tag}")
+        });
         let agent_port = env::var("AGENT_PORT")
             .ok()
             .and_then(|v| v.parse().ok())

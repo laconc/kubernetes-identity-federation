@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kif.fullname" . }}-federation-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: federation
+data:
+  ISSUER_URL: {{ required "federation.config.issuerUrl is required" .Values.federation.config.issuerUrl | quote }}
+  PORT: {{ .Values.federation.config.port | quote }}
+  SIGNING_SECRET_NAME: {{ .Values.federation.config.signingSecretName | quote }}
+  JWKS_SECRET_NAME: {{ .Values.federation.config.jwksSecretName | quote }}

@@ -1,0 +1,44 @@
+apiVersion: v2
+name: kubernetes-identity-federation
+description: Allows Kubernetes workloads to auth and access AWS, Azure, and GCP resources using OIDC federation.
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+kubeVersion: ">=1.29.0-0"
+keywords:
+  - security
+  - oidc
+  - identity
+  - federation
+  - aws
+  - azure
+  - gcp
+home: https://github.com/laconc/kubernetes-identity-federation
+sources:
+  - https://github.com/laconc/kubernetes-identity-federation
+maintainers:
+  - name: laconc
+
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/category: security
+  artifacthub.io/images: |
+    - name: kif-federation
+      image: quay.io/laconc/kif-federation
+    - name: kif-issuer
+      image: quay.io/laconc/kif-issuer
+    - name: kif-webhook
+      image: quay.io/laconc/kif-webhook
+    - name: kif-agent
+      image: quay.io/laconc/kif-agent
+  artifacthub.io/crds: |
+    - kind: CloudRoleBinding
+      version: v1alpha1
+      name: cloudrolebindings.64f.dev
+      displayName: CloudRoleBinding
+      description: Binds a Kubernetes ServiceAccount to one or more cloud provider identities.
+    - kind: ResolvedCloudRoleBinding
+      version: v1alpha1
+      name: resolvedcloudrolebindings.64f.dev
+      displayName: ResolvedCloudRoleBinding
+      description: The effective configuration for a ServiceAccount.

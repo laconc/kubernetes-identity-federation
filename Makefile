@@ -67,17 +67,17 @@ deps-cache:
 
 crdgen:
 	cd app && \
-		RUST_BACKTRACE=1 cargo run -p kif-crdgen -- crb > ../deploy/crd/crb.yaml && \
-		RUST_BACKTRACE=1 cargo run -p kif-crdgen -- rcrb > ../deploy/crd/rcrb.yaml
+		RUST_BACKTRACE=1 cargo run -p kif-crdgen -- crb > ../deploy/charts/kif/templates/crds/crb.yaml && \
+		RUST_BACKTRACE=1 cargo run -p kif-crdgen -- rcrb > ../deploy/charts/kif/templates/crds/rcrb.yaml
 
 verify-crds:
 	@cd app && RUST_BACKTRACE=1 cargo run -p kif-crdgen -- crb \
-		| diff -u ../deploy/crd/crb.yaml - \
-		|| (echo "ERROR: The CloudRoleBinding CRD is out of date, please regenerate the CRD locally with 'make crdgen'."; exit 1)
+		| diff -u ../deploy/charts/kif/templates/crds/crb.yaml - \
+		|| (echo "ERROR: CloudRoleBinding CRD is out of date, please run 'make crdgen'."; exit 1)
 
 	@cd app && RUST_BACKTRACE=1 cargo run -p kif-crdgen -- rcrb \
-		| diff -u ../deploy/crd/rcrb.yaml - \
-		|| (echo "ERROR: The ResolvedCloudRoleBinding CRD is out of date, please regenerate the CRD locally with 'make crdgen'."; exit 1)
+		| diff -u ../deploy/charts/kif/templates/crds/rcrb.yaml - \
+		|| (echo "ERROR: ResolvedCloudRoleBinding CRD is out of date, please run 'make crdgen'."; exit 1)
 
 lint:
 	cd app && cargo clippy --all-targets --all-features -- -D warnings

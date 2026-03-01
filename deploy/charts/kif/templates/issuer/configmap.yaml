@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kif.fullname" . }}-issuer-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: issuer
+data:
+  ISSUER_URL: {{ required "federation.config.issuerUrl is required" .Values.federation.config.issuerUrl | quote }}
+  PORT: {{ .Values.issuer.config.port | quote }}
+  JWKS_SECRET_NAME: {{ .Values.federation.config.jwksSecretName | quote }}
+  JWKS_FILE_PATH: "/jwks/jwks.json"
+  RUNNING_IN_CLUSTER: "true"
