@@ -1,3 +1,5 @@
+use std::{fs, io::Write, path::Path};
+
 use anyhow::{Context, anyhow};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -33,8 +35,8 @@ pub struct MintedToken {
 
 pub async fn mint(
     client: &reqwest::Client,
-    federation_url: String,
-    bearer_sa_token: String,
+    federation_url: &str,
+    bearer_sa_token: &str,
     req: MintRequest,
 ) -> Result<MintResponse, MintError> {
     let url = format!("{}/v1/mint", federation_url.trim_end_matches('/'));
@@ -49,7 +51,11 @@ pub async fn mint(
         .map_err(MintError::Other)?;
 
     let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp
+        .text()
+        .await
+        .context("read response body")
+        .map_err(MintError::Other)?;
 
     match status {
         StatusCode::OK => {
@@ -67,6 +73,33 @@ pub async fn mint(
     }
 }
 
+/// Atomically writes the given contents to the specified path. It does this by writing
+/// to a temporary file and then renaming it. We don't want the main containers reading
+/// a partially-written file.
+pub fn atomic_write(path: &Path, contents: &str) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create parent dirs for {}", path.display()))?;
+    }
+
+    let tmp = path.with_added_extension("tmp");
+    let mut f = fs::File::create(&tmp)
+        .with_context(|| format!("failed to create tmp file {}", tmp.display()))?;
+    f.write_all(contents.as_bytes())
+        .with_context(|| format!("failed to write contents to tmp file {}", tmp.display()))?;
+    f.sync_all()
+        .with_context(|| format!("failed to sync tmp file {}", tmp.display()))?;
+
+    fs::rename(&tmp, path).with_context(|| {
+        format!(
+            "failed to rename tmp file {} to {}",
+            tmp.display(),
+            path.display()
+        )
+    })?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::{Result, anyhow, bail};
@@ -80,7 +113,7 @@ mod tests {
     use std::{net::SocketAddr, path::PathBuf, sync::Arc};
     use tokio::net::TcpListener;
 
-    use crate::{federation, writer};
+    use crate::federation;
 
     #[derive(Clone, Default)]
     struct Seen {
@@ -99,7 +132,7 @@ mod tests {
             .map(|s| s.to_string());
 
         *seen.auth.lock().await = auth;
-        *seen.body.lock().await = Some(body.clone());
+        *seen.body.lock().await = Some(body);
 
         (
             StatusCode::OK,
@@ -131,12 +164,12 @@ mod tests {
             config_hash,
             pod_name: None,
         };
-        let resp = federation::mint(&client, federation_url, sa_token, req)
+        let resp = federation::mint(&client, &federation_url, &sa_token, req)
             .await
             .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         let aws = resp.aws.ok_or_else(|| anyhow!("no AWS token returned"))?;
-        writer::atomic_write(&aws_token_path, &aws.token)?;
+        federation::atomic_write(&aws_token_path, &aws.token)?;
         Ok(())
     }
 

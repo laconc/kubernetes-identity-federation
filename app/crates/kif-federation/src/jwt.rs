@@ -143,3 +143,83 @@ fn now_nanos() -> u128 {
 fn base64_url(bytes: Box<[u8]>) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aws_claims_with_provenance_includes_kif_k8s() {
+        let before = now_unix_seconds();
+        let claims = AwsClaims::new(
+            "https://issuer.example.com",
+            "system:serviceaccount:default:my-sa",
+            "sts.amazonaws.com",
+            3600,
+            true,
+            "default",
+            "my-sa",
+            Some("my-pod".to_string()),
+            None,
+        );
+        let after = now_unix_seconds();
+
+        let v = serde_json::to_value(&claims).unwrap();
+        assert_eq!(v["iss"], "https://issuer.example.com");
+        assert_eq!(v["sub"], "system:serviceaccount:default:my-sa");
+        assert_eq!(v["aud"], "sts.amazonaws.com");
+
+        let iat = v["iat"].as_u64().unwrap();
+        assert!(iat >= before && iat <= after);
+
+        let exp = v["exp"].as_u64().unwrap();
+        assert!(exp >= before + 3600 && exp <= after + 3600);
+
+        // include_provenance=true → kif.k8s present
+        assert!(v["kif"]["k8s"].is_object());
+        assert_eq!(v["kif"]["k8s"]["namespace"], "default");
+        assert_eq!(v["kif"]["k8s"]["service_account"], "my-sa");
+        assert_eq!(v["kif"]["k8s"]["pod"], "my-pod");
+    }
+
+    #[test]
+    fn aws_claims_without_provenance_omits_kif() {
+        let claims = AwsClaims::new(
+            "https://issuer.example.com",
+            "system:serviceaccount:default:my-sa",
+            "sts.amazonaws.com",
+            3600,
+            false,
+            "default",
+            "my-sa",
+            None,
+            None,
+        );
+        let v = serde_json::to_value(&claims).unwrap();
+        // include_provenance=false, no extra_attributes → kif field absent
+        assert!(v.get("kif").is_none());
+    }
+
+    #[test]
+    fn aws_claims_without_provenance_with_extra_attrs_includes_kif_but_no_k8s() {
+        let mut attrs = BTreeMap::new();
+        attrs.insert("team".to_string(), "platform".to_string());
+
+        let claims = AwsClaims::new(
+            "https://issuer.example.com",
+            "system:serviceaccount:default:my-sa",
+            "sts.amazonaws.com",
+            3600,
+            false,
+            "default",
+            "my-sa",
+            None,
+            Some(attrs),
+        );
+        let v = serde_json::to_value(&claims).unwrap();
+        // kif present (due to extra_attrs), but k8s absent (include_provenance=false)
+        assert!(v["kif"].is_object());
+        assert!(v["kif"].get("k8s").is_none());
+        assert_eq!(v["kif"]["attributes"]["team"], "platform");
+    }
+}

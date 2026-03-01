@@ -159,7 +159,7 @@ fn build_agent_container(
         restart_policy: Some("Always".to_string()),
         startup_probe: Some(Probe {
             http_get: Some(HTTPGetAction {
-                path: Some("/readyz".to_string()),
+                path: Some("/startupz".to_string()),
                 port: IntOrString::Int(agent_port.into()),
                 ..Default::default()
             }),
@@ -272,4 +272,77 @@ fn upsert_env(env: &mut Vec<EnvVar>, name: &str, value: &str) {
         value: Some(value.to_string()),
         ..Default::default()
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::api::core::v1::PodSpec;
+
+    fn make_pod(containers: &[&str], init_containers: Option<&[&str]>) -> Pod {
+        Pod {
+            spec: Some(PodSpec {
+                containers: containers
+                    .iter()
+                    .map(|n| Container {
+                        name: n.to_string(),
+                        ..Default::default()
+                    })
+                    .collect(),
+                init_containers: init_containers.map(|names| {
+                    names
+                        .iter()
+                        .map(|n| Container {
+                            name: n.to_string(),
+                            ..Default::default()
+                        })
+                        .collect()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn pod_has_container_finds_main_container() {
+        let pod = make_pod(&["app", "sidecar"], None);
+        assert!(pod_has_container(&pod, "app"));
+        assert!(pod_has_container(&pod, "sidecar"));
+        assert!(!pod_has_container(&pod, "missing"));
+    }
+
+    #[test]
+    fn pod_has_container_finds_init_container() {
+        let pod = make_pod(&["app"], Some(&["init-job"]));
+        assert!(pod_has_container(&pod, "init-job"));
+        assert!(!pod_has_container(&pod, "missing"));
+    }
+
+    #[test]
+    fn pod_has_container_no_spec_returns_false() {
+        let pod = Pod::default();
+        assert!(!pod_has_container(&pod, "anything"));
+    }
+
+    #[test]
+    fn upsert_env_adds_new_var() {
+        let mut env = vec![];
+        upsert_env(&mut env, "FOO", "bar");
+        assert_eq!(env.len(), 1);
+        assert_eq!(env[0].name, "FOO");
+        assert_eq!(env[0].value.as_deref(), Some("bar"));
+    }
+
+    #[test]
+    fn upsert_env_updates_existing_without_duplicate() {
+        let mut env = vec![EnvVar {
+            name: "FOO".to_string(),
+            value: Some("old".to_string()),
+            ..Default::default()
+        }];
+        upsert_env(&mut env, "FOO", "new");
+        assert_eq!(env.len(), 1);
+        assert_eq!(env[0].value.as_deref(), Some("new"));
+    }
 }
