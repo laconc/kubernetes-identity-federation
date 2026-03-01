@@ -13,7 +13,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/livez", get(livez))
         .route("/v1/mint", post(mint))
-        .route("/v1/rotate-keys", post(rotate_keys)) // NOT IMPLEMENTED
+        .route("/v1/rotate-keys", post(rotate_keys))
         .with_state(state)
 }
 
@@ -147,18 +147,11 @@ async fn mint(
     let token_ttl = aws_cfg.max_session_duration_seconds.unwrap_or(3600);
 
     // Determine whether to include provenance information in the token
-    let include_provenance = resolved_binding
+    let (include_provenance, extra_attrs) = resolved_binding
         .spec
         .attributes
-        .as_ref()
-        .and_then(|a| a.include_provenance)
-        .unwrap_or(true);
-
-    let extra_attrs = resolved_binding
-        .spec
-        .attributes
-        .as_ref()
-        .and_then(|a| a.extra.clone());
+        .map(|a| (a.include_provenance.unwrap_or(true), a.extra))
+        .unwrap_or((true, None));
 
     let claims = jwt::AwsClaims::new(
         &state.issuer_url,
@@ -172,8 +165,8 @@ async fn mint(
         extra_attrs,
     );
 
-    let signing = state.signing.read().await.clone();
-    let token = match jwt::sign_rs256(&signing, &claims) {
+    let guard = state.signing.read().await;
+    let token = match jwt::sign_rs256(&guard, &claims) {
         Ok(t) => t,
         Err(e) => {
             return (
