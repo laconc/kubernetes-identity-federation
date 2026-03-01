@@ -1,0 +1,48 @@
+{{- $imgRepo := .Values.federation.image.repository | default .Values.image.repository -}}
+{{- $imgTag := .Values.federation.image.tag | default .Values.image.tag -}}
+{{- $pullPolicy := .Values.federation.image.pullPolicy | default .Values.image.pullPolicy -}}
+{{- $psc := .Values.federation.podSecurityContext | default .Values.podSecurityContext -}}
+{{- $csc := .Values.federation.containerSecurityContext | default .Values.containerSecurityContext -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kif-federation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: federation
+spec:
+  replicas: {{ .Values.federation.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kif.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: federation
+  template:
+    metadata:
+      labels:
+        {{- include "kif.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: federation
+        {{- with .Values.federation.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.federation.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.federation.serviceAccount.name }}
+      securityContext:
+        {{- toYaml $psc | nindent 8 }}
+      containers:
+        - name: federation
+          image: {{ printf "%s/kif-federation:%s" $imgRepo $imgTag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          securityContext:
+            {{- toYaml $csc | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.federation.config.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: kif-federation-config

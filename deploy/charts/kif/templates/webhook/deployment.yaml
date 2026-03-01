@@ -1,0 +1,69 @@
+{{- $imgRepo := .Values.webhook.image.repository | default .Values.image.repository -}}
+{{- $imgTag := .Values.webhook.image.tag | default .Values.image.tag -}}
+{{- $pullPolicy := .Values.webhook.image.pullPolicy | default .Values.image.pullPolicy -}}
+{{- $psc := .Values.webhook.podSecurityContext | default .Values.podSecurityContext -}}
+{{- $csc := .Values.webhook.containerSecurityContext | default .Values.containerSecurityContext -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kif-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  replicas: {{ .Values.webhook.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kif.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: webhook
+  template:
+    metadata:
+      labels:
+        {{- include "kif.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: webhook
+        {{- with .Values.webhook.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.webhook.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.webhook.serviceAccount.name }}
+      securityContext:
+        {{- toYaml $psc | nindent 8 }}
+      containers:
+        - name: webhook
+          image: {{ printf "%s/kif-webhook:%s" $imgRepo $imgTag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          securityContext:
+            {{- toYaml $csc | nindent 12 }}
+          ports:
+            - name: https
+              containerPort: {{ .Values.webhook.config.port }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.webhook.config.healthPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: kif-webhook-config
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: health
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port: health
+            failureThreshold: 30
+            periodSeconds: 5
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.webhook.tls.secretName }}

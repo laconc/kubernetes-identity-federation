@@ -1,16 +1,22 @@
+{{- if .Values.crds.install }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: resolvedcloudrolebindings.64f.dev
+  name: cloudrolebindings.64f.dev
+  {{- if .Values.crds.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
 spec:
   group: 64f.dev
   names:
-    categories: []
-    kind: ResolvedCloudRoleBinding
-    plural: resolvedcloudrolebindings
+    categories:
+    - all
+    kind: CloudRoleBinding
+    plural: cloudrolebindings
     shortNames:
-    - rcrb
-    singular: resolvedcloudrolebinding
+    - crb
+    singular: cloudrolebinding
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -26,19 +32,19 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Auto-generated derived type for ResolvedCloudRoleBindingSpec via `CustomResource`
+        description: Auto-generated derived type for CloudRoleBindingSpec via `CustomResource`
         properties:
           spec:
             description: |-
-              ResolvedCloudRoleBinding is the webhook-produced, merged, validated
-              effective configuration for a single ServiceAccount in a namespace.
+              CloudRoleBinding binds a Kubernetes ServiceAccount (in the same namespace)
+              to one or more cloud providers.
+
+              This CRD supports either:
+              - a single CloudRoleBinding configuring multiple providers for the ServiceAccount, or
+              - multiple CloudRoleBindings for the same ServiceAccount configuring different providers.
             properties:
               attributes:
-                description: |-
-                  Resolved attributes that will be included in minted provider tokens.
-
-                  - includeProvenance defaults to true if unset (policy behavior)
-                  - extra may be merged from multiple CloudRoleBindings
+                description: Optional attributes to include in minted provider tokens for ABAC decisions.
                 nullable: true
                 properties:
                   extra:
@@ -57,11 +63,7 @@ spec:
                 type: object
               providers:
                 default: {}
-                description: |-
-                  Resolved provider configuration for this ServiceAccount.
-
-                  This is the merged output of all applicable CloudRoleBindings
-                  after conflict policy is applied.
+                description: Provider-specific configuration. Any subset may be provided.
                 properties:
                   aws:
                     nullable: true
@@ -143,7 +145,7 @@ spec:
                     type: object
                 type: object
               subject:
-                description: The ServiceAccount this resolved binding applies to (same namespace as this resource).
+                description: The subject in this namespace this binding applies to.
                 properties:
                   serviceAccountName:
                     description: ServiceAccount in the same namespace.
@@ -160,7 +162,7 @@ spec:
             properties:
               conditions:
                 default: []
-                description: Conditions reflect merge/validation state computed by the controller.
+                description: Conditions set by your controller (validation status, conflicts, etc.)
                 items:
                   properties:
                     lastTransitionTime:
@@ -205,49 +207,21 @@ spec:
                   - type
                   type: object
                 type: array
-              configHash:
-                description: |-
-                  Hash of the effective resolved config (stable canonicalization recommended).
-                  Lets you cheaply detect when the effective config changed.
-                nullable: true
-                type: string
               lastError:
-                description: Optional last error for operator visibility.
+                description: Last error for operator visibility, if there was one.
                 nullable: true
                 type: string
               providers:
                 default: ''
-                description: A short, human-friendly summary of configured providers (e.g. "aws,azure").
+                description: Summary string for quick display (e.g., "aws,azure" or "aws").
                 type: string
-              sources:
-                default: []
-                description: |-
-                  Source CloudRoleBindings that contributed to the resolved config.
-                  Useful for debugging and traceability.
-                items:
-                  properties:
-                    generation:
-                      description: |-
-                        Resource generation observed when it contributed to the resolved config.
-                        Helps debugging “why didn’t my change apply?”
-                      format: int64
-                      nullable: true
-                      type: integer
-                    name:
-                      description: Name of the CloudRoleBinding (same namespace).
-                      minLength: 1
-                      type: string
-                  required:
-                  - name
-                  type: object
-                type: array
             type: object
         required:
         - spec
-        title: ResolvedCloudRoleBinding
+        title: CloudRoleBinding
         type: object
     served: true
     storage: true
     subresources:
       status: {}
-
+{{- end }}

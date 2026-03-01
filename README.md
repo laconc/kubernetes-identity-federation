@@ -32,7 +32,7 @@ available to any Kubernetes cluster, provided a great experience for admins and 
 
 ## Architecture
 
-To make this work, we have a number of components that must be deployed in your cluster. We provide a [Helm chart](helm)
+To make this work, we have a number of components that must be deployed in your cluster. We provide a [Helm chart](deploy/charts/kif)
 to make this easier.
 
 ### Components
@@ -84,7 +84,7 @@ to make this easier.
 
 CloudRoleBinding binds a Kubernetes ServiceAccount to one or more cloud identities.
 
-This example provides a small sample of the configuration options available. The full schema is available in the [CRD manifest](deploy/crd/crb.yaml).
+This example provides a small sample of the configuration options available. The full schema is available in the [CRD manifest](deploy/charts/kif/templates/crds/crb.yaml).
 ```yaml
 # Example: single CloudRoleBinding configuring all three providers
 apiVersion: 64f.dev/v1alpha1
@@ -130,13 +130,9 @@ spec:
 With this system, developers are able to simplify cloud auth for their apps and cluster operators have a clear and auditable
 mapping from Kubernetes ServiceAccounts to cloud identities, without needing to manage secrets or long-lived credentials.
 
-More to come.
-
 ### Installation
 
-The recommended way to install is through our Helm chart.
-
-More to come.
+See the [chart README](deploy/charts/kif/README.md) for full installation instructions.
 
 ### Developer (or platform team) responsibilities
 
@@ -147,10 +143,7 @@ More to come.
 
 ### TODOs
 
-* Create the Helm chart
-* Integration tests through make using an ephemeral kind cluster and localstack for AWS
-* CI: sign images
-* We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
+* Integration tests through make using an ephemeral kind cluster, cert-manager, and localstack for AWS
 * Observability: publish metrics and traces, and improve our logging story
 * Federation service:
   * Introduce the key rotation logic
@@ -159,9 +152,11 @@ More to come.
 * Webhook service:
   * We should monitor the ResolvedCloudRoleBinding resources and recreate them if required
   * The ResolvedCloudRoleBinding should likely have an ownerReference to the ServiceAccount
-* CI: tag with semver and git sha
-* Publish Helm chart to a registry
+* Provide the ability to limit this service to a few namespaces (allow and deny list)
+* CI: tag images with semver and git sha
+* CI: Publish Helm chart to a registry
 * Azure and GCP support
+* We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
 * Better documentation around the architecture, installation, and using the CRDs
 * Once code complete, audit for security and coding best practices. And address the opportunities for code reuse.
 * Ensure HA is well supported
@@ -173,7 +168,7 @@ make lint
 make test
 ```
 
-### Regenerate the CRD schema
+### Regenerate the CRD schemas
 
 After making changes to the CRD specs in [app/crates/kif-api/src/crds.rs](app/crates/kif-api/src/crds.rs), you can regenerate the CRD manifests with:
 

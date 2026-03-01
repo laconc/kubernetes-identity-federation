@@ -28,8 +28,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     cargo build --release
 
-# Remove stub artifacts for local crates so the builder stage recompiles them
-# against real sources; external dep artifacts in target/release/deps are kept
+# Remove stub artifacts for local crates so the builder stage can recompile them
+# against real sources; external deps in target/release/deps are kept
 RUN find target/release -maxdepth 1 -name "kif*" -delete && \
     find target/release/deps -name "kif*" -delete && \
     find target/release/.fingerprint -maxdepth 1 -name "kif*" -exec rm -rf {} +

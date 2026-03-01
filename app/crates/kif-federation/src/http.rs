@@ -17,7 +17,7 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn livez() -> impl IntoResponse {
+async fn livez() -> StatusCode {
     StatusCode::OK
 }
 

@@ -1,0 +1,19 @@
+{{- if .Values.webhook.tls.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kif-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  secretName: {{ .Values.webhook.tls.secretName }}
+  dnsNames:
+    - kif-webhook
+    - kif-webhook.{{ .Release.Namespace }}.svc
+    - kif-webhook.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: kif-webhook-selfsigned
+    kind: Issuer
+{{- end }}

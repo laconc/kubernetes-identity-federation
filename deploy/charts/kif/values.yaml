@@ -1,0 +1,137 @@
+crds:
+  # -- Install the CRD resources as part of this chart.
+  install: true
+  # -- Prevent CRDs from being deleted when the release is uninstalled.
+  keep: true
+
+# -- Default image settings for all services. Per-service image blocks override these.
+image:
+  # -- Image registry and repository prefix (e.g. quay.io/laconc)
+  repository: quay.io/laconc
+  # -- Image tag applied to all services unless overridden
+  tag: latest
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Pod-level security context applied to all Deployments. Per-service podSecurityContext overrides this.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 2000
+  runAsGroup: 2000
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context applied to all containers. Per-service containerSecurityContext overrides this.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+federation:
+  # -- Number of federation replicas
+  replicaCount: 1
+  # -- Per-service image overrides. Keys: repository, tag, pullPolicy. Empty uses global image.
+  image: {}
+  # -- Annotations added to each Pod.
+  podAnnotations: {}
+  # -- Extra labels added to each Pod.
+  podLabels: {}
+  # -- Overrides the global podSecurityContext. When non-empty, replaces the global entirely.
+  podSecurityContext: {}
+  # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
+  containerSecurityContext: {}
+  serviceAccount:
+    # -- ServiceAccount name for the federation service
+    name: kif-federation
+  service:
+    # -- Service type
+    type: ClusterIP
+    # -- Service port
+    port: 5001
+  config:
+    # -- REQUIRED. Public OIDC issuer URL (e.g. https://oidc.example.com). Must be stable and publicly reachable.
+    issuerUrl: ""
+    # -- Container port
+    port: 5001
+    # -- Name of the Secret used to store the signing key pair
+    signingSecretName: kif-signing
+    # -- Name of the Secret used to store the public JWKS. Also used by the issuer service.
+    jwksSecretName: kif-jwks
+
+issuer:
+  # -- Number of issuer replicas
+  replicaCount: 1
+  # -- Per-service image overrides. Keys: repository, tag, pullPolicy. Empty uses global image.
+  image: {}
+  # -- Annotations added to each Pod.
+  podAnnotations: {}
+  # -- Extra labels added to each Pod.
+  podLabels: {}
+  # -- Overrides the global podSecurityContext. When non-empty, replaces the global entirely.
+  podSecurityContext: {}
+  # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
+  containerSecurityContext: {}
+  serviceAccount:
+    # -- ServiceAccount name for the issuer service
+    name: kif-issuer
+  service:
+    # -- Service type. The issuer endpoints must be publicly reachable; expose via ingress or LoadBalancer.
+    type: ClusterIP
+    # -- Service port
+    port: 5002
+  config:
+    # -- Container port
+    port: 5002
+
+webhook:
+  # -- Number of webhook replicas
+  replicaCount: 1
+  # -- Per-service image overrides. Keys: repository, tag, pullPolicy. Empty uses global image.
+  image: {}
+  # -- Annotations added to each Pod.
+  podAnnotations: {}
+  # -- Extra labels added to each Pod.
+  podLabels: {}
+  # -- Overrides the global podSecurityContext. When non-empty, replaces the global entirely.
+  podSecurityContext: {}
+  # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
+  containerSecurityContext: {}
+  serviceAccount:
+    # -- ServiceAccount name for the webhook service
+    name: kif-webhook
+  service:
+    # -- Port the webhook Service exposes to the API server
+    port: 443
+  config:
+    # -- Admission failure mode: Fail (deny pod) or Skip (allow with warning event)
+    admissionFailureMode: Fail
+    # -- Number of reconciliation workers
+    reconcileWorkers: 4
+    # -- HTTPS port for the admission webhook server
+    port: 9443
+    # -- HTTP port for liveness/startup probes
+    healthPort: 5003
+  tls:
+    # -- Name of the Secret containing tls.crt and tls.key for the webhook server
+    secretName: kif-webhook-tls
+    certManager:
+      # -- Use cert-manager to provision the webhook TLS certificate automatically
+      enabled: true
+    # -- Base64-encoded CA certificate for the MutatingWebhookConfiguration caBundle.
+    # -- Required when certManager.enabled=false. For a self-signed cert, this is base64 of tls.crt.
+    caBundle: ""
+
+agent:
+  # -- Per-service image overrides. Keys: repository, tag, pullPolicy. Empty uses global image.
+  image: {}
+  config:
+    # -- Port the agent sidecar listens on
+    port: 5004
+    # -- Seconds before token expiry to start refreshing
+    refreshSkewSeconds: 300
+    # -- Minimum interval between refreshes
+    minRefreshSeconds: 30
+    # -- Maximum random jitter added to refresh interval
+    maxJitterSeconds: 60

@@ -8,6 +8,7 @@ mod queue;
 mod reconcile;
 
 use std::net::SocketAddr;
+use std::sync::{Arc, atomic::AtomicBool};
 
 use anyhow::Result;
 use axum_server::tls_rustls::RustlsConfig;
@@ -27,10 +28,12 @@ async fn main() -> Result<()> {
     let client = Client::try_default().await?;
 
     // Work queue + controller
+    let ready = Arc::new(AtomicBool::new(false));
     let (q, rx) = queue::Queue::new(2048);
     tokio::spawn(reconcile::watch_cloud_role_bindings(
         client.clone(),
         q.clone(),
+        Arc::clone(&ready),
     ));
     tokio::spawn(reconcile::run_workers(
         client.clone(),
@@ -46,7 +49,7 @@ async fn main() -> Result<()> {
         info!(%bind_addr, "health server up");
 
         tokio::spawn(async move {
-            let app = http::health_router();
+            let app = http::health_router(ready);
             let _ = axum::serve(listener, app).await;
         });
     }

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kif-webhook-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+data:
+  HTTPS_PORT: {{ .Values.webhook.config.port | quote }}
+  HEALTH_PORT: {{ .Values.webhook.config.healthPort | quote }}
+  TLS_CERT_PATH: "/tls/tls.crt"
+  TLS_KEY_PATH: "/tls/tls.key"
+  ADMISSION_FAILURE_MODE: {{ .Values.webhook.config.admissionFailureMode | quote }}
+  RECONCILE_WORKERS: {{ .Values.webhook.config.reconcileWorkers | quote }}
+  AGENT_IMAGE: {{ include "kif.agentImage" . | quote }}
+  AGENT_PORT: {{ .Values.agent.config.port | quote }}
+  FEDERATION_SERVICE_HOST: {{ printf "http://kif-federation.%s.svc.cluster.local" .Release.Namespace | quote }}
+  FEDERATION_SERVICE_PORT: {{ .Values.federation.service.port | quote }}

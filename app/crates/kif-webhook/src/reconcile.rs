@@ -1,3 +1,8 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use anyhow::Result;
 use futures::StreamExt;
 use kube::{Api, Client, api::PostParams};
@@ -13,12 +18,19 @@ use crate::{
 
 use kif_api::{CloudRoleBinding, CloudRoleBindingRef, ResolvedCloudRoleBinding};
 
-pub async fn watch_cloud_role_bindings(client: Client, q: Queue) -> Result<()> {
+pub async fn watch_cloud_role_bindings(
+    client: Client,
+    q: Queue,
+    ready: Arc<AtomicBool>,
+) -> Result<()> {
     let crb_api: Api<CloudRoleBinding> = Api::all(client);
     let mut w = watcher(crb_api, Default::default()).boxed();
 
     while let Some(ev) = w.next().await {
         match ev? {
+            Event::InitDone => {
+                ready.store(true, Ordering::Relaxed);
+            }
             Event::Apply(crb) | Event::Delete(crb) | Event::InitApply(crb) => {
                 let sa = crb.spec.subject.service_account_name;
                 if let Some(namespace) = crb.metadata.namespace {
