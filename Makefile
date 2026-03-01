@@ -8,12 +8,19 @@ VERSION := $(shell cd app; cargo metadata --no-deps --format-version=1 | jq -r '
 IMAGE_CRATES := kif-agent kif-federation kif-issuer kif-webhook
 
 ifdef GHA_CACHE
-CACHE_ARGS = --cache-from type=gha,scope=$(BIN) --cache-to type=gha,mode=max,scope=$(BIN)
+BINARY_CACHE_ARGS = \
+	--cache-from type=gha,scope=deps \
+	--cache-from type=gha,scope=$(BIN) \
+	--cache-to type=gha,mode=max,scope=$(BIN)
+DEPS_CACHE_ARGS = \
+	--cache-from type=gha,scope=deps \
+	--cache-to type=gha,mode=max,scope=deps
 else
-CACHE_ARGS =
+BINARY_CACHE_ARGS =
+DEPS_CACHE_ARGS =
 endif
 
-.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) crdgen lint test verify-crds
+.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) deps-cache crdgen lint test verify-crds
 
 build-image:
 	docker buildx build \
@@ -21,7 +28,7 @@ build-image:
 		--build-arg GIT_REF=$(GIT_REF) \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg BIN=$(BIN) \
-		$(CACHE_ARGS) \
+		$(BINARY_CACHE_ARGS) \
 		--load \
 		-t $(BIN):$(IMAGE_TAG) \
 		.
@@ -39,6 +46,12 @@ push-images:
 push-image-%:
 	docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 	docker push $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
+
+deps-cache:
+	docker buildx build \
+		--target deps \
+		$(DEPS_CACHE_ARGS) \
+		.
 
 crdgen:
 	cd app && \
