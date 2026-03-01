@@ -2,7 +2,8 @@ SHELL := /bin/bash
 
 IMAGE_TAG ?= latest
 BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-GIT_REF := $(shell git rev-parse HEAD)
+GIT_REF  := $(shell git rev-parse HEAD)
+GIT_REPO ?= $(shell git remote get-url origin)
 VERSION := $(shell cd app; cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
 
 IMAGE_CRATES := kif-agent kif-federation kif-issuer kif-webhook
@@ -20,7 +21,7 @@ BINARY_CACHE_ARGS =
 DEPS_CACHE_ARGS =
 endif
 
-.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) deps-cache crdgen lint test verify-crds
+.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) sign-images $(IMAGE_CRATES:%=sign-image-%) deps-cache crdgen lint test verify-crds
 
 build-image:
 	docker buildx build \
@@ -37,7 +38,6 @@ build-images:
 	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=build-image-%)
 
 build-image-%:
-	@echo "Building image for $*..."
 	$(MAKE) build-image BIN=$*
 
 push-images:
@@ -46,6 +46,18 @@ push-images:
 push-image-%:
 	docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 	docker push $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
+
+sign-images:
+	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=sign-image-%)
+
+sign-image-%:
+	$(eval DIGEST := $(shell docker inspect --format='{{index .RepoDigests 0}}' $(IMAGE_PREFIX)/$*:$(IMAGE_TAG) | cut -d@ -f2))
+	cosign sign \
+		--yes \
+		-a "repo=$(GIT_REPO)" \
+		-a "sha=$(GIT_REF)" \
+		$(if $(GITHUB_WORKFLOW),-a "workflow=$(GITHUB_WORKFLOW)") \
+		$(IMAGE_PREFIX)/$*:$(IMAGE_TAG)@$(DIGEST)
 
 deps-cache:
 	docker buildx build \
