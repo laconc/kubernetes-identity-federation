@@ -7,22 +7,38 @@ VERSION := $(shell cd app; cargo metadata --no-deps --format-version=1 | jq -r '
 
 IMAGE_CRATES := kif-agent kif-federation kif-issuer kif-webhook
 
-.PHONY: build-image crdgen lint test verify-crd
+ifdef GHA_CACHE
+CACHE_ARGS = --cache-from type=gha,scope=$(BIN) --cache-to type=gha,mode=max,scope=$(BIN)
+else
+CACHE_ARGS =
+endif
+
+.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) crdgen lint test verify-crds
 
 build-image:
-	docker build \
+	docker buildx build \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
 		--build-arg GIT_REF=$(GIT_REF) \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg BIN=$(BIN) \
+		$(CACHE_ARGS) \
+		--load \
 		-t $(BIN):$(IMAGE_TAG) \
 		.
 
 build-images:
-	@for crate in $(IMAGE_CRATES); do \
-		echo "Building image for $$crate..."; \
-		$(MAKE) build-image BIN=$$crate || exit 1; \
-	done
+	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=build-image-%)
+
+build-image-%:
+	@echo "Building image for $*..."
+	$(MAKE) build-image BIN=$*
+
+push-images:
+	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=push-image-%)
+
+push-image-%:
+	docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 
 crdgen:
 	cd app && \

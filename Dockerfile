@@ -12,7 +12,9 @@ RUN apk update && apk add build-base
 
 COPY ./app ./
 
-RUN cargo build --release -p ${BIN}
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --release -p ${BIN}
 
 # ----------------
 FROM gcr.io/distroless/base:latest AS runtime
