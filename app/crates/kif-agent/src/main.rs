@@ -1,7 +1,6 @@
 mod config;
 mod federation;
 mod http;
-mod writer;
 
 use std::process::exit;
 use std::time::Duration;
@@ -31,20 +30,16 @@ async fn main() -> Result<()> {
     // We don't want to start the main containers until we have our minted tokens.
     let (ready_tx, ready_rx) = watch::channel(false);
 
-    let http_state = http::HttpState { ready_rx };
-    let app = http::router(http_state);
-
     let cfg_clone = cfg.clone();
-    let client_clone = client.clone();
-    let ready_tx_clone = ready_tx.clone();
-
     tokio::spawn(async move {
-        if let Err(e) = refresh_loop(cfg_clone, client_clone, ready_tx_clone).await {
+        if let Err(e) = refresh_loop(cfg_clone, client, ready_tx).await {
             error!(error=?e, "refresh loop exited");
             exit(1);
         }
     });
 
+    let http_state = http::HttpState { ready_rx };
+    let app = http::router(http_state);
     let bind_addr = format!("0.0.0.0:{}", cfg.port);
     let listener = TcpListener::bind(&bind_addr).await?;
     info!(%bind_addr, "agent server up");
@@ -88,13 +83,17 @@ async fn refresh_loop(
             pod_name: cfg.pod_name.clone(),
         };
 
-        match federation::mint(&client, cfg.federation_url.clone(), sa_token, req).await {
+        match federation::mint(&client, &cfg.federation_url, &sa_token, req).await {
             Ok(resp) => {
                 if let Some(aws) = resp.aws {
-                    writer::atomic_write(&cfg.aws_token_path, &aws.token).context(format!(
-                        "failed writing AWS token to {}",
-                        cfg.aws_token_path.display()
-                    ))?;
+                    federation::atomic_write(&cfg.aws_token_path, &aws.token).with_context(
+                        || {
+                            format!(
+                                "failed writing AWS token to {}",
+                                cfg.aws_token_path.display()
+                            )
+                        },
+                    )?;
 
                     if !first_success {
                         first_success = true;
@@ -147,4 +146,42 @@ fn compute_jitter(max: u64) -> u64 {
     }
     let mut rng = rand::rng();
     rng.random_range(0..=max)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compute_sleep_normal_case() {
+        // With jitter=0: sleep = expires_in - skew = 3600 - 300 = 3300
+        let sleep = compute_sleep_seconds(3600, 300, 60, 0);
+        assert_eq!(sleep, 3300);
+    }
+
+    #[test]
+    fn compute_sleep_saturating_skew_clamps_to_min() {
+        // skew > expires_in → saturating_sub → 0, clamped to min
+        let sleep = compute_sleep_seconds(100, 200, 60, 0);
+        assert_eq!(sleep, 60);
+    }
+
+    #[test]
+    fn compute_sleep_never_below_min() {
+        let sleep = compute_sleep_seconds(0, 0, 30, 0);
+        assert_eq!(sleep, 30);
+    }
+
+    #[test]
+    fn compute_jitter_zero_when_max_zero() {
+        assert_eq!(compute_jitter(0), 0);
+    }
+
+    #[test]
+    fn compute_jitter_within_range() {
+        for _ in 0..100 {
+            let j = compute_jitter(60);
+            assert!(j <= 60);
+        }
+    }
 }

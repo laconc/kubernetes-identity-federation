@@ -43,13 +43,11 @@ pub async fn token_review(client: &Client, token: &str) -> Result<TokenSubject> 
     let user = status
         .user
         .ok_or_else(|| anyhow!("TokenReview missing user"))?;
-    if user.username.is_none() {
-        return Err(anyhow!("TokenReview user missing username"));
-    }
+    let username = user
+        .username
+        .ok_or_else(|| anyhow!("TokenReview user missing username"))?;
 
-    Ok(TokenSubject {
-        username: user.username.unwrap(),
-    })
+    Ok(TokenSubject { username })
 }
 
 pub fn parse_service_account_username(u: &str) -> Option<(String, String)> {
@@ -129,21 +127,17 @@ pub async fn ensure_signing_and_jwks(
     let key = RsaPrivateKey::new(&mut rng, rsa_bits)?;
     let pem = key.to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)?;
     let pem_str = pem.to_string();
+    let pem_bytes = pem_str.as_bytes().to_vec();
+    let kid_bytes = kid.as_bytes().to_vec();
 
     let material = SigningMaterial {
-        kid: kid.clone(),
-        private_key_pem: pem_str.clone(),
+        kid,
+        private_key_pem: pem_str,
     };
 
     let mut data: BTreeMap<String, ByteString> = BTreeMap::new();
-    data.insert(
-        SIGNING_SECRET_KEY_PEM.to_string(),
-        ByteString(pem_str.into_bytes()),
-    );
-    data.insert(
-        SIGNING_SECRET_KEY_KID.to_string(),
-        ByteString(kid.into_bytes()),
-    );
+    data.insert(SIGNING_SECRET_KEY_PEM.to_string(), ByteString(pem_bytes));
+    data.insert(SIGNING_SECRET_KEY_KID.to_string(), ByteString(kid_bytes));
 
     let signing_secret = Secret {
         metadata: kube::api::ObjectMeta {
@@ -196,4 +190,35 @@ async fn upsert_jwks_secret(secrets: &Api<Secret>, name: &str, jwks_json: String
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sa_username_valid() {
+        let result = parse_service_account_username("system:serviceaccount:default:my-sa");
+        assert_eq!(result, Some(("default".to_string(), "my-sa".to_string())));
+    }
+
+    #[test]
+    fn parse_sa_username_wrong_prefix() {
+        assert!(parse_service_account_username("user:admin").is_none());
+        assert!(parse_service_account_username("serviceaccount:default:my-sa").is_none());
+    }
+
+    #[test]
+    fn parse_sa_username_missing_sa_part() {
+        // Only namespace, no SA after second colon
+        assert!(parse_service_account_username("system:serviceaccount:default").is_none());
+    }
+
+    #[test]
+    fn parse_sa_username_empty_parts() {
+        // Empty namespace
+        assert!(parse_service_account_username("system:serviceaccount::my-sa").is_none());
+        // Empty SA
+        assert!(parse_service_account_username("system:serviceaccount:default:").is_none());
+    }
 }

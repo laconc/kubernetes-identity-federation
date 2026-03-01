@@ -148,22 +148,23 @@ More to come.
 ### TODOs
 
 * Create the Helm chart
-* federation service:
+* Integration tests through make using an ephemeral kind cluster and localstack for AWS
+* CI: sign images
+* We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
+* Observability: publish metrics and traces, and improve our logging story
+* Federation service:
   * Introduce the key rotation logic
-* agent sidecar:
+* Agent sidecar:
   * The refresh loop should differentiate between the initial mint and subsequent refreshes
-* webhook service:
+* Webhook service:
   * We should monitor the ResolvedCloudRoleBinding resources and recreate them if required
   * The ResolvedCloudRoleBinding should likely have an ownerReference to the ServiceAccount
-* Integration tests through make using an ephemeral kind cluster and localstack for AWS
-* CI: add caching for deps and Docker layers, and build images in parallel, and tag with semver and git sha
-* Observability: publish metrics and traces, and improve our logging story
-* Azure and GCP support
+* CI: tag with semver and git sha
 * Publish Helm chart to a registry
+* Azure and GCP support
 * Better documentation around the architecture, installation, and using the CRDs
 * Once code complete, audit for security and coding best practices. And address the opportunities for code reuse.
-* For HA, should we use a kv store? We should avoid leader election.
-* We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
+* Ensure HA is well supported
 
 ### Lint and run unit tests
 
