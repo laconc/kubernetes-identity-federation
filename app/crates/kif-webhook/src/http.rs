@@ -10,15 +10,11 @@ use crate::admission::AppState;
 
 pub fn health_router() -> Router {
     Router::new()
-        .route("/livez", get(livez))
-        .route("/startupz", get(startupz))
+        .route("/livez", get(ok))
+        .route("/startupz", get(ok))
 }
 
-async fn livez() -> StatusCode {
-    StatusCode::OK
-}
-
-async fn startupz() -> StatusCode {
+async fn ok() -> StatusCode {
     StatusCode::OK
 }
 

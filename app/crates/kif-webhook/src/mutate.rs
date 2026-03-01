@@ -1,7 +1,8 @@
 use anyhow::{Result, bail};
 use json_patch::Patch;
 use k8s_openapi::api::core::v1::{
-    Container, EnvVar, EnvVarSource, HTTPGetAction, ObjectFieldSelector, Pod, PodSpec, Probe,
+    ConfigMapProjection, Container, DownwardAPIProjection, DownwardAPIVolumeFile, EnvVar,
+    EnvVarSource, HTTPGetAction, KeyToPath, ObjectFieldSelector, Pod, PodSpec, Probe,
     ProjectedVolumeSource, ServiceAccountTokenProjection, Volume, VolumeMount, VolumeProjection,
 };
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
@@ -89,10 +90,37 @@ fn ensure_sa_projected_token_volume(volumes: &mut Vec<Volume>) -> Result<()> {
     };
 
     let proj = ProjectedVolumeSource {
-        sources: Some(vec![VolumeProjection {
-            service_account_token: Some(sat),
-            ..Default::default()
-        }]),
+        sources: Some(vec![
+            VolumeProjection {
+                service_account_token: Some(sat),
+                ..Default::default()
+            },
+            VolumeProjection {
+                downward_api: Some(DownwardAPIProjection {
+                    items: Some(vec![DownwardAPIVolumeFile {
+                        path: "namespace".to_string(),
+                        field_ref: Some(ObjectFieldSelector {
+                            api_version: Some("v1".to_string()),
+                            field_path: "metadata.namespace".to_string(),
+                        }),
+                        ..Default::default()
+                    }]),
+                }),
+                ..Default::default()
+            },
+            VolumeProjection {
+                config_map: Some(ConfigMapProjection {
+                    name: "kube-root-ca.crt".to_string(),
+                    items: Some(vec![KeyToPath {
+                        key: "ca.crt".to_string(),
+                        path: "ca.crt".to_string(),
+                        ..Default::default()
+                    }]),
+                    optional: Some(false),
+                }),
+                ..Default::default()
+            },
+        ]),
         ..Default::default()
     };
 

@@ -13,7 +13,7 @@ use anyhow::Result;
 use axum_server::tls_rustls::RustlsConfig;
 use kube::Client;
 use tokio::net::TcpListener;
-use tracing::{info, warn};
+use tracing::info;
 
 use config::WebhookConfig;
 
@@ -27,33 +27,17 @@ async fn main() -> Result<()> {
     let client = Client::try_default().await?;
 
     // Work queue + controller
-    let (q, _rx) = queue::Queue::new(2048);
-    {
-        let client = client.clone();
-        let cfg = cfg.clone();
-        let q = q.clone();
-        tokio::spawn(async move {
-            if let Err(e) = reconcile::watch_cloud_role_bindings(client, q, cfg).await {
-                warn!(error=?e, "watcher exited");
-            }
-        });
-    }
-    {
-        let client = client.clone();
-        let cfg = cfg.clone();
-        let (q, rx) = queue::Queue::new(2048);
-        tokio::spawn(reconcile::watch_cloud_role_bindings(
-            client.clone(),
-            q.clone(),
-            cfg.clone(),
-        ));
-        tokio::spawn(reconcile::run_workers(
-            client.clone(),
-            cfg.clone(),
-            rx,
-            q.clone(),
-        ));
-    }
+    let (q, rx) = queue::Queue::new(2048);
+    tokio::spawn(reconcile::watch_cloud_role_bindings(
+        client.clone(),
+        q.clone(),
+    ));
+    tokio::spawn(reconcile::run_workers(
+        client.clone(),
+        cfg.clone(),
+        rx,
+        q.clone(),
+    ));
 
     // A simple server for the probes
     {

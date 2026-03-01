@@ -164,7 +164,6 @@ More to come.
 * Once code complete, audit for security and coding best practices. And address the opportunities for code reuse.
 * For HA, should we use a kv store? We should avoid leader election.
 * We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
-* What's our story when configHash changes and we need to force new tokens?
 
 ### Lint and run unit tests
 

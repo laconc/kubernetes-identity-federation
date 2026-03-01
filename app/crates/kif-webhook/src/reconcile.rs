@@ -13,11 +13,7 @@ use crate::{
 
 use kif_api::{CloudRoleBinding, CloudRoleBindingRef, ResolvedCloudRoleBinding};
 
-pub async fn watch_cloud_role_bindings(
-    client: Client,
-    q: Queue,
-    _cfg: WebhookConfig,
-) -> Result<()> {
+pub async fn watch_cloud_role_bindings(client: Client, q: Queue) -> Result<()> {
     let crb_api: Api<CloudRoleBinding> = Api::all(client);
     let mut w = watcher(crb_api, Default::default()).boxed();
 

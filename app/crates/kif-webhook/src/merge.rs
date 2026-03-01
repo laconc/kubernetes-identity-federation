@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use anyhow::{Result, anyhow, bail};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::jiff::Timestamp;
-use kube::{Api, api::PostParams};
+use kube::{
+    Api,
+    api::{Patch, PatchParams},
+};
 use sha2::{Digest, Sha256};
 
 use kif_api::{
@@ -28,16 +31,7 @@ pub fn build_resolved_from_spec(
     sources: Vec<CloudRoleBindingRef>,
     merged: ResolvedCloudRoleBindingSpec,
 ) -> Result<ResolvedCloudRoleBinding> {
-    let mut providers = vec![];
-    if merged.providers.aws.is_some() {
-        providers.push("aws");
-    }
-    if merged.providers.azure.is_some() {
-        providers.push("azure");
-    }
-    if merged.providers.gcp.is_some() {
-        providers.push("gcp");
-    }
+    let providers = providers_summary(&merged.providers);
 
     let spec_bytes = serde_json::to_vec(&merged)?;
     let mut h = Sha256::new();
@@ -52,7 +46,7 @@ pub fn build_resolved_from_spec(
 
     let status = ResolvedCloudRoleBindingStatus {
         config_hash: Some(config_hash),
-        providers: providers.join(","),
+        providers,
         sources,
         last_error: None,
         conditions: vec![Condition {
@@ -345,11 +339,185 @@ pub async fn upsert_resolved(
         bail!("ResolvedCloudRoleBinding.metadata.name is required");
     }
 
-    if api.get_opt(name).await?.is_some() {
-        api.replace(name, &PostParams::default(), &resolved).await?;
-    } else {
-        api.create(&PostParams::default(), &resolved).await?;
-    }
+    api.patch(
+        name,
+        &PatchParams::apply("kif-webhook"),
+        &Patch::Apply(&resolved),
+    )
+    .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use kif_api::{AzureProviderSpec, CloudRoleBindingSpec};
+
+    use super::*;
+
+    fn make_crb(
+        name: &str,
+        aws: Option<AwsProviderSpec>,
+        attributes: Option<AttributesSpec>,
+    ) -> CloudRoleBinding {
+        CloudRoleBinding {
+            metadata: kube::api::ObjectMeta {
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            spec: CloudRoleBindingSpec {
+                subject: SubjectRef {
+                    service_account_name: "my-sa".to_string(),
+                },
+                providers: ProvidersSpec {
+                    aws,
+                    ..Default::default()
+                },
+                attributes,
+            },
+            status: None,
+        }
+    }
+
+    fn aws_spec() -> AwsProviderSpec {
+        AwsProviderSpec {
+            role_arn: "arn:aws:iam::123456789012:role/my-role".to_string(),
+            region: None,
+            sts_regional_endpoints: true,
+            audience: None,
+            max_session_duration_seconds: None,
+        }
+    }
+
+    #[test]
+    fn single_crb_aws_ok() {
+        let crb = make_crb("crb1", Some(aws_spec()), None);
+        let result = merge_inputs("my-sa", vec![&crb]);
+        let spec = result.expect("should merge successfully");
+        assert_eq!(spec.subject.service_account_name, "my-sa");
+        assert!(spec.providers.aws.is_some());
+        assert_eq!(spec.providers.aws.unwrap().role_arn, aws_spec().role_arn);
+    }
+
+    #[test]
+    fn missing_provider() {
+        let crb = make_crb("crb-no-provider", None, None);
+        let err = merge_inputs("my-sa", vec![&crb]).expect_err("should fail");
+        assert!(matches!(err.condition_type, ConditionType::InvalidSpec));
+        assert!(matches!(err.reason, ConditionReason::ValidationFailed));
+        assert!(
+            err.affected_crb_names
+                .contains(&"crb-no-provider".to_string())
+        );
+    }
+
+    #[test]
+    fn aws_provider_conflict() {
+        let crb1 = make_crb("crb1", Some(aws_spec()), None);
+        let crb2 = make_crb("crb2", Some(aws_spec()), None);
+        let err = merge_inputs("my-sa", vec![&crb1, &crb2]).expect_err("should conflict");
+        assert!(matches!(err.condition_type, ConditionType::Conflict));
+        assert!(matches!(err.reason, ConditionReason::ProviderConflict));
+        assert!(err.affected_crb_names.contains(&"crb1".to_string()));
+        assert!(err.affected_crb_names.contains(&"crb2".to_string()));
+    }
+
+    #[test]
+    fn include_provenance_conflict() {
+        // crb_a has AWS + include_provenance=true
+        let crb_a = make_crb(
+            "crb-a",
+            Some(aws_spec()),
+            Some(AttributesSpec {
+                include_provenance: Some(true),
+                extra: None,
+            }),
+        );
+        // crb_b uses Azure so there's no provider conflict, only an attribute conflict
+        let crb_b = CloudRoleBinding {
+            metadata: kube::api::ObjectMeta {
+                name: Some("crb-b".to_string()),
+                ..Default::default()
+            },
+            spec: CloudRoleBindingSpec {
+                subject: SubjectRef {
+                    service_account_name: "my-sa".to_string(),
+                },
+                providers: ProvidersSpec {
+                    aws: None,
+                    azure: Some(AzureProviderSpec {
+                        tenant_id: "00000000-0000-0000-0000-000000000000".to_string(),
+                        client_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                        audience: None,
+                    }),
+                    gcp: None,
+                },
+                attributes: Some(AttributesSpec {
+                    include_provenance: Some(false),
+                    extra: None,
+                }),
+            },
+            status: None,
+        };
+        let err = merge_inputs("my-sa", vec![&crb_a, &crb_b]).expect_err("should conflict");
+        assert!(matches!(err.condition_type, ConditionType::Conflict));
+        assert!(matches!(err.reason, ConditionReason::AttributeConflict));
+    }
+
+    #[test]
+    fn extra_key_conflict() {
+        let mut extra1 = BTreeMap::new();
+        extra1.insert("env".to_string(), "prod".to_string());
+
+        let mut extra2 = BTreeMap::new();
+        extra2.insert("env".to_string(), "staging".to_string());
+
+        let crb1 = make_crb(
+            "crb1",
+            Some(aws_spec()),
+            Some(AttributesSpec {
+                include_provenance: None,
+                extra: Some(extra1),
+            }),
+        );
+        let crb2 = CloudRoleBinding {
+            metadata: kube::api::ObjectMeta {
+                name: Some("crb2".to_string()),
+                ..Default::default()
+            },
+            spec: CloudRoleBindingSpec {
+                subject: SubjectRef {
+                    service_account_name: "my-sa".to_string(),
+                },
+                providers: ProvidersSpec {
+                    aws: None,
+                    azure: Some(AzureProviderSpec {
+                        tenant_id: "00000000-0000-0000-0000-000000000000".to_string(),
+                        client_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                        audience: None,
+                    }),
+                    gcp: None,
+                },
+                attributes: Some(AttributesSpec {
+                    include_provenance: None,
+                    extra: Some(extra2),
+                }),
+            },
+            status: None,
+        };
+        let err = merge_inputs("my-sa", vec![&crb1, &crb2]).expect_err("should conflict");
+        assert!(matches!(err.condition_type, ConditionType::Conflict));
+        assert!(matches!(err.reason, ConditionReason::AttributeConflict));
+        assert!(err.message.contains("env"));
+    }
+
+    #[test]
+    fn no_providers_after_merge() {
+        // Empty input list → no AWS after merge
+        let err = merge_inputs("my-sa", vec![]).expect_err("should fail on empty input");
+        assert!(matches!(err.condition_type, ConditionType::InvalidSpec));
+        assert!(matches!(err.reason, ConditionReason::ValidationFailed));
+    }
 }
