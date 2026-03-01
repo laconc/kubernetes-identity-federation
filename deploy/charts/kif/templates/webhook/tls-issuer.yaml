@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: kif-webhook-selfsigned
+  name: {{ include "kif.fullname" . }}-webhook-selfsigned
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}

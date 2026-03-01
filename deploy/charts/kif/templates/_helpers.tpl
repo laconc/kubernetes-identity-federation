@@ -6,6 +6,18 @@ Expand the name of the chart.
 {{- end }}
 
 {{/*
+Fully qualified release name. Used as the base for all resource names.
+Override with fullnameOverride if needed (e.g. to keep legacy names on upgrade).
+*/}}
+{{- define "kif.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "kif.labels" -}}
@@ -20,24 +32,6 @@ Selector labels
 {{- define "kif.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "kif.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
-
-{{/*
-Resolve image for a given component dict.
-Usage: {{ include "kif.image" (dict "component" .Values.federation "global" .Values) }}
-*/}}
-{{- define "kif.image" -}}
-{{- $repo := .component.image.repository | default .global.image.repository -}}
-{{- $tag := .component.image.tag | default .global.image.tag -}}
-{{- $pullPolicy := .component.image.pullPolicy | default .global.image.pullPolicy -}}
-{{- printf "%s/%s:%s" $repo .name $tag -}}
-{{- end }}
-
-{{/*
-Resolve image pull policy for a given component.
-*/}}
-{{- define "kif.pullPolicy" -}}
-{{- .component.image.pullPolicy | default .global.image.pullPolicy -}}
 {{- end }}
 
 {{/*

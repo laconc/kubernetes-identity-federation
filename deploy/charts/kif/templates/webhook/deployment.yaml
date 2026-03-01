@@ -3,10 +3,11 @@
 {{- $pullPolicy := .Values.webhook.image.pullPolicy | default .Values.image.pullPolicy -}}
 {{- $psc := .Values.webhook.podSecurityContext | default .Values.podSecurityContext -}}
 {{- $csc := .Values.webhook.containerSecurityContext | default .Values.containerSecurityContext -}}
+{{- $tlsSecret := .Values.webhook.tls.secretName | default (printf "%s-webhook-tls" (include "kif.fullname" .)) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}
@@ -30,7 +31,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ .Values.webhook.serviceAccount.name }}
+      serviceAccountName: {{ .Values.webhook.serviceAccount.name | default (printf "%s-webhook" (include "kif.fullname" .)) }}
       securityContext:
         {{- toYaml $psc | nindent 8 }}
       containers:
@@ -48,7 +49,7 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: kif-webhook-config
+                name: {{ include "kif.fullname" . }}-webhook-config
           livenessProbe:
             httpGet:
               path: /livez
@@ -66,4 +67,4 @@ spec:
       volumes:
         - name: tls
           secret:
-            secretName: {{ .Values.webhook.tls.secretName }}
+            secretName: {{ $tlsSecret }}

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}

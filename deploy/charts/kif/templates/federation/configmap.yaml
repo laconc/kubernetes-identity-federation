@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kif-federation-config
+  name: {{ include "kif.fullname" . }}-federation-config
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}

@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: webhook
@@ -19,15 +19,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: webhook
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.webhook.serviceAccount.name }}
+    name: {{ .Values.webhook.serviceAccount.name | default (printf "%s-webhook" (include "kif.fullname" .)) }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   apiGroup: rbac.authorization.k8s.io

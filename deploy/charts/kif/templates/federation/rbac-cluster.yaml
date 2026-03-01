@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kif-federation
+  name: {{ include "kif.fullname" . }}-federation
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: federation
@@ -16,15 +16,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kif-federation
+  name: {{ include "kif.fullname" . }}-federation
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: federation
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.federation.serviceAccount.name }}
+    name: {{ .Values.federation.serviceAccount.name | default (printf "%s-federation" (include "kif.fullname" .)) }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: kif-federation
+  name: {{ include "kif.fullname" . }}-federation
   apiGroup: rbac.authorization.k8s.io

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: kif-federation
+  name: {{ include "kif.fullname" . }}-federation
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}

@@ -1,19 +1,20 @@
 {{- if .Values.webhook.tls.certManager.enabled }}
+{{- $tlsSecret := .Values.webhook.tls.secretName | default (printf "%s-webhook-tls" (include "kif.fullname" .)) -}}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: webhook
 spec:
-  secretName: {{ .Values.webhook.tls.secretName }}
+  secretName: {{ $tlsSecret }}
   dnsNames:
-    - kif-webhook
-    - kif-webhook.{{ .Release.Namespace }}.svc
-    - kif-webhook.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "kif.fullname" . }}-webhook
+    - {{ include "kif.fullname" . }}-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "kif.fullname" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
-    name: kif-webhook-selfsigned
+    name: {{ include "kif.fullname" . }}-webhook-selfsigned
     kind: Issuer
 {{- end }}

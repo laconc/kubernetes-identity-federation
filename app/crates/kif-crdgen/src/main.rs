@@ -31,6 +31,17 @@ fn main() -> Result<()> {
 }
 
 fn add_helm_wrapper(yaml: &str) -> String {
+    // Validate structure: panic early if metadata already has annotations,
+    // which would cause the string injection below to produce a duplicate key.
+    let doc: serde_yaml::Value =
+        serde_yaml::from_str(yaml).expect("CRD serialization produced invalid YAML");
+    assert!(
+        doc.get("metadata")
+            .and_then(|m| m.get("annotations"))
+            .is_none(),
+        "CRD metadata already contains annotations; add_helm_wrapper must be updated to merge them"
+    );
+
     let mut output = String::from("{{- if .Values.crds.install }}\n");
     let mut in_metadata = false;
     for line in yaml.lines() {

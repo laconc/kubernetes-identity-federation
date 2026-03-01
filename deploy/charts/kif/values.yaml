@@ -1,3 +1,6 @@
+# -- Override the fully-qualified resource name prefix. Useful when upgrading from a fixed-name install.
+fullnameOverride: ""
+
 crds:
   # -- Install the CRD resources as part of this chart.
   install: true
@@ -43,8 +46,8 @@ federation:
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
   serviceAccount:
-    # -- ServiceAccount name for the federation service
-    name: kif-federation
+    # -- ServiceAccount name for the federation service. Defaults to <fullname>-federation.
+    name: ""
   service:
     # -- Service type
     type: ClusterIP
@@ -74,8 +77,8 @@ issuer:
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
   serviceAccount:
-    # -- ServiceAccount name for the issuer service
-    name: kif-issuer
+    # -- ServiceAccount name for the issuer service. Defaults to <fullname>-issuer.
+    name: ""
   service:
     # -- Service type. The issuer endpoints must be publicly reachable; expose via ingress or LoadBalancer.
     type: ClusterIP
@@ -99,13 +102,13 @@ webhook:
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
   serviceAccount:
-    # -- ServiceAccount name for the webhook service
-    name: kif-webhook
+    # -- ServiceAccount name for the webhook service. Defaults to <fullname>-webhook.
+    name: ""
   service:
     # -- Port the webhook Service exposes to the API server
     port: 443
   config:
-    # -- Admission failure mode: Fail (deny pod) or Skip (allow with warning event)
+    # -- Admission failure mode: Fail (deny pod) or Ignore (allow with warning)
     admissionFailureMode: Fail
     # -- Number of reconciliation workers
     reconcileWorkers: 4
@@ -114,8 +117,8 @@ webhook:
     # -- HTTP port for liveness/startup probes
     healthPort: 5003
   tls:
-    # -- Name of the Secret containing tls.crt and tls.key for the webhook server
-    secretName: kif-webhook-tls
+    # -- Name of the Secret containing tls.crt and tls.key for the webhook server. Defaults to <fullname>-webhook-tls.
+    secretName: ""
     certManager:
       # -- Use cert-manager to provision the webhook TLS certificate automatically
       enabled: true

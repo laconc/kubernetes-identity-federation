@@ -1,13 +1,13 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: kif-webhook
+  name: {{ include "kif.fullname" . }}-webhook
   labels:
     {{- include "kif.labels" . | nindent 4 }}
     app.kubernetes.io/component: webhook
   {{- if .Values.webhook.tls.certManager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ printf "%s/kif-webhook" .Release.Namespace }}
+    cert-manager.io/inject-ca-from: {{ printf "%s/%s-webhook" .Release.Namespace (include "kif.fullname" .) }}
   {{- end }}
 webhooks:
   - name: kif-webhook.64f.dev
@@ -28,7 +28,7 @@ webhooks:
         scope: "Namespaced"
     clientConfig:
       service:
-        name: kif-webhook
+        name: {{ include "kif.fullname" . }}-webhook
         namespace: {{ .Release.Namespace }}
         path: /mutate
         port: {{ .Values.webhook.service.port }}
