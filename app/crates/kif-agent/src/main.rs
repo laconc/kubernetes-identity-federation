@@ -6,13 +6,13 @@ mod writer;
 use std::process::exit;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rand::RngExt;
 use tokio::{net::TcpListener, sync::watch, time::sleep};
 use tracing::{error, info, warn};
 
 use config::AgentConfig;
-use federation::MintRequest;
+use federation::{MintError, MintRequest};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
 
     let bind_addr = format!("0.0.0.0:{}", cfg.port);
     let listener = TcpListener::bind(&bind_addr).await?;
-    info!(%bind_addr, "agent listening");
+    info!(%bind_addr, "agent server up");
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -84,6 +84,8 @@ async fn refresh_loop(
         let req = MintRequest {
             namespace: cfg.namespace.clone(),
             service_account_name: cfg.service_account_name.clone(),
+            config_hash: cfg.config_hash.clone(),
+            pod_name: cfg.pod_name.clone(),
         };
 
         match federation::mint(&client, cfg.federation_url.clone(), sa_token, req).await {
@@ -118,7 +120,13 @@ async fn refresh_loop(
                     sleep(Duration::from_secs(cfg.min_refresh_seconds)).await;
                 }
             }
-            Err(e) => {
+            Err(MintError::ConfigHashMismatch) => {
+                error!(
+                    "the config has changed since this Pod was admitted; restart the Pod to pick up the recent changes"
+                );
+                return Err(anyhow!("config hash mismatch"));
+            }
+            Err(MintError::Other(e)) => {
                 warn!(error=?e, "mint failed; retrying");
                 sleep(Duration::from_secs(cfg.min_refresh_seconds)).await;
             }

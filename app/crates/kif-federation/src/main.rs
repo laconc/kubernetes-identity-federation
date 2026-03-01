@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     let port = state.port;
     let bind_addr = format!("0.0.0.0:{port}");
     let listener = TcpListener::bind(&bind_addr).await?;
-    info!(%bind_addr, "federation listening");
+    info!(%bind_addr, "federation server up");
     let app: Router = http::router(state);
     axum::serve(listener, app).await?;
     Ok(())

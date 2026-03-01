@@ -70,7 +70,7 @@ spec:
                         type: string
                       maxSessionDurationSeconds:
                         description: Max session duration.
-                        format: uint32
+                        format: uint64
                         minimum: 0.0
                         nullable: true
                         type: integer

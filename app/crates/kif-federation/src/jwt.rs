@@ -44,6 +44,8 @@ struct KifClaims {
 struct KifK8s {
     namespace: String,
     service_account: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pod: Option<String>,
 }
 
 impl AwsClaims {
@@ -56,6 +58,7 @@ impl AwsClaims {
         include_provenance: bool,
         namespace: &str,
         service_account: &str,
+        pod_name: Option<String>,
         extra_attributes: Option<BTreeMap<String, String>>,
     ) -> Self {
         let now = now_unix_seconds();
@@ -66,6 +69,7 @@ impl AwsClaims {
                 k8s: include_provenance.then(|| KifK8s {
                     namespace: namespace.to_string(),
                     service_account: service_account.to_string(),
+                    pod: pod_name,
                 }),
                 attributes: extra_attributes,
             })

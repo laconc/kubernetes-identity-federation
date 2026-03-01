@@ -38,23 +38,26 @@ to make this easier.
 ### Components
 
 * CRD: `CloudRoleBinding` - Configuration objects to define the mapping between Kubernetes ServiceAccounts and cloud identities. More in the next section.
-  * There can be multiple CloudRoleBindings referring to the same ServiceAccount, or a single CloudRoleBinding referring to multiple providers;
-  the CRD configurations are merged at Pod admission time.
+  * There can be multiple CloudRoleBindings referring to the same ServiceAccount, or a single CloudRoleBinding referring to multiple providers; the CRD configurations are merged at Pod admission time.
   * It's unsupported to have multiple CloudRoleBindings with conflicting configurations for the same ServiceAccount.
 
 * `Issuer` service - A minimal OIDC issuer that serves only the two public endpoints required for cloud verification:
 `/.well-known/openid-configuration` and `/jwks.json`
-  * Given the infrequency of changes to those endpoints, we recommend running this service behind a CDN
+  * These endpoints must be publicly accessible, cloud providers call them to verify minted tokens
+  * The issuer URL is embedded as the `issuer` claim in every minted token, so it must be stable; changing it invalidates existing trust relationships with cloud providers.
+  * We recommend exposing the service via a LoadBalancer or ingress and using it as the origin for a CDN
 
 * `Federation` service - The core of the system. This private service is responsible for:
   * Validating Kubernetes ServiceAccount tokens (through the TokenReview API)
   * Minting the cloud-specific OIDC tokens (one per provider)
   * Writing and rotating the private signing keys, and the public JWKS used for verification by the cloud providers
+  * Note: Signing keys are stored in a Kubernetes Secret and shared across replicas. During key rotation, old keys are retained in the JWKS until all tokens signed with them have expired, preventing verification failures for in-flight tokens.
 
 * `Agent` sidecar - A sidecar attached to Pods mounting relevant ServiceAccounts. The agent is responsible for:
   * Requesting provider tokens from the `federation` service
   * Refreshing tokens before they expire
   * Mounting the provider tokens in container volumes for the cloud provider SDKs and setting associated env vars
+  * Token file contents are updated in place on each refresh. The cloud SDKs re-read the token file on their own credential refresh cycle, so token updates don't require a Pod restart.
 
 * `Webhook` service - A mutating admission webhook that:
   * Intercepts Pod creation events
@@ -64,10 +67,12 @@ to make this easier.
     * The `agent` sidecar
     * A projected ServiceAccount token volume
     * The necessary cloud provider token volume mounts and env vars
+  * Depending on the value of `ADMISSION_FAILURE_MODE`, we:
+    * **`Fail` (default)** — Pod creation is denied if no valid `ResolvedCloudRoleBinding` is found
+    * **`Skip`** — Pod creation is allowed but a Kubernetes Warning event is emitted on the Pod
 
-* CRD: `ResolvedCloudRoleBinding` - Represents the merged config for a given ServiceAccount. This is a status-only
-  CRD that serves as a source of truth for our services, and developers can and should ignore them.
-  * To improve security, we recommend that developers aren't provided access to these at all
+* CRD: `ResolvedCloudRoleBinding` - Represents the merged config for a given ServiceAccount. This is a purely informational CRD that serves as a source of truth for our services, and developers can and should ignore them.
+  * To improve security: Under normal circumstances, we recommend that access to these be restricted to our services.
 
 **How it all fits together:**
 * The `federation` service owns key lifecycle and token minting
@@ -142,14 +147,16 @@ More to come.
 
 ### TODOs
 
-* Implement the webhook service
 * Create the Helm chart
 * federation service:
   * Introduce the key rotation logic
 * agent sidecar:
   * The refresh loop should differentiate between the initial mint and subsequent refreshes
+* webhook service:
+  * We should monitor the ResolvedCloudRoleBinding resources and recreate them if required
+  * The ResolvedCloudRoleBinding should likely have an ownerReference to the ServiceAccount
 * Integration tests through make using an ephemeral kind cluster and localstack for AWS
-* CI: add caching for deps and Docker layers, and build images in parallel
+* CI: add caching for deps and Docker layers, and build images in parallel, and tag with semver and git sha
 * Observability: publish metrics and traces, and improve our logging story
 * Azure and GCP support
 * Publish Helm chart to a registry
@@ -157,6 +164,7 @@ More to come.
 * Once code complete, audit for security and coding best practices. And address the opportunities for code reuse.
 * For HA, should we use a kv store? We should avoid leader election.
 * We should somehow show the devs the exact trust policy snippets to use in IAM. In the CRD .status or a small UI maybe?
+* What's our story when configHash changes and we need to force new tokens?
 
 ### Lint and run unit tests
 

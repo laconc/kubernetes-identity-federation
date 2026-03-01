@@ -10,3 +10,19 @@ keywords.workspace = true
 description.workspace = true
 
 [dependencies]
+kif-api = { path = "../kif-api" }
+
+anyhow.workspace = true
+axum.workspace = true
+axum-server.workspace = true
+futures.workspace = true
+hex.workspace = true
+json-patch.workspace = true
+k8s-openapi.workspace = true
+kube.workspace = true
+kube-runtime.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

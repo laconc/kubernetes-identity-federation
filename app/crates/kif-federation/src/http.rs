@@ -9,8 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AppState, jwt, k8s};
 
-const TOKEN_TTL_SECONDS: u64 = 3600;
-
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/livez", get(livez))
@@ -28,6 +26,9 @@ async fn livez() -> impl IntoResponse {
 pub struct MintRequest {
     pub namespace: String,
     pub service_account_name: String,
+    pub config_hash: String,
+    #[serde(default)]
+    pub pod_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,7 +117,34 @@ async fn mint(
         None => return (StatusCode::BAD_REQUEST, "no AWS provider configured\n").into_response(),
     };
 
+    let resolved_hash = match resolved_binding
+        .status
+        .as_ref()
+        .and_then(|s| s.config_hash.as_deref())
+    {
+        Some(h) => h,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "ResolvedCloudRoleBinding missing config hash in status\n",
+            )
+                .into_response();
+        }
+    };
+
+    if resolved_hash != req.config_hash {
+        return (
+            StatusCode::CONFLICT,
+            format!(
+                "config hash mismatch: client sent {}, but resolved binding has {}\n",
+                req.config_hash, resolved_hash
+            ),
+        )
+            .into_response();
+    }
+
     let audience = aws_cfg.audience.unwrap_or("sts.amazonaws.com".to_string());
+    let token_ttl = aws_cfg.max_session_duration_seconds.unwrap_or(3600);
 
     // Determine whether to include provenance information in the token
     let include_provenance = resolved_binding
@@ -136,10 +164,11 @@ async fn mint(
         &state.issuer_url,
         &subject.username,
         &audience,
-        TOKEN_TTL_SECONDS,
+        token_ttl,
         include_provenance,
         &req.namespace,
         &req.service_account_name,
+        req.pod_name,
         extra_attrs,
     );
 
@@ -158,7 +187,7 @@ async fn mint(
     let resp = MintResponse {
         aws: Some(MintedToken {
             token,
-            expires_in_seconds: TOKEN_TTL_SECONDS,
+            expires_in_seconds: token_ttl,
         }),
     };
 
