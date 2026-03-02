@@ -58,8 +58,8 @@ impl WebhookConfig {
             let tag = env::var("AGENT_IMAGE_TAG").unwrap_or("latest".to_string());
             format!("kif-agent:{tag}")
         });
-        let agent_image_pull_policy = env::var("AGENT_IMAGE_PULL_POLICY")
-            .unwrap_or_else(|_| "IfNotPresent".to_string());
+        let agent_image_pull_policy =
+            env::var("AGENT_IMAGE_PULL_POLICY").unwrap_or_else(|_| "IfNotPresent".to_string());
         let agent_port = env::var("AGENT_PORT")
             .ok()
             .and_then(|v| v.parse().ok())
