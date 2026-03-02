@@ -50,56 +50,109 @@ helm install kif deploy/charts/kif \
 
 ## Values
 
-| Key                                   | Type   | Default                                                                                           | Description                                                                                                                               |
-|---------------------------------------|--------|---------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `fullnameOverride`                    | string | `""`                                                                                              | Override the fully-qualified resource name prefix. Defaults to the release name.                                                          |
-| `crds.install`                        | bool   | `true`                                                                                            | Install CRD resources as part of this chart                                                                                               |
-| `crds.keep`                           | bool   | `true`                                                                                            | Prevent CRDs from being deleted when the release is uninstalled (`helm.sh/resource-policy: keep`)                                         |
-| `image.repository`                    | string | `quay.io/laconc`                                                                                  | Image registry and repository prefix                                                                                                      |
-| `image.tag`                           | string | `latest`                                                                                          | Image tag applied to all services unless overridden                                                                                       |
-| `image.pullPolicy`                    | string | `IfNotPresent`                                                                                    | Image pull policy                                                                                                                         |
-| `podSecurityContext`                  | object | `{runAsNonRoot: true, runAsUser: 2000, runAsGroup: 2000, seccompProfile: {type: RuntimeDefault}}` | Pod-level security context applied to all Deployments. Per-service `podSecurityContext` replaces this entirely when non-empty.            |
-| `containerSecurityContext`            | object | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}`    | Container-level security context applied to all containers. Per-service `containerSecurityContext` replaces this entirely when non-empty. |
-| `federation.replicaCount`             | int    | `1`                                                                                               | Number of federation replicas                                                                                                             |
-| `federation.image`                    | object | `{}`                                                                                              | Per-service image overrides (repository, tag, pullPolicy)                                                                                 |
-| `federation.podAnnotations`           | object | `{}`                                                                                              | Annotations added to each federation Pod                                                                                                  |
-| `federation.podLabels`                | object | `{}`                                                                                              | Extra labels added to each federation Pod                                                                                                 |
-| `federation.podSecurityContext`       | object | `{}`                                                                                              | Overrides the global `podSecurityContext` for federation Pods. When non-empty, replaces the global entirely.                              |
-| `federation.containerSecurityContext` | object | `{}`                                                                                              | Overrides the global `containerSecurityContext` for the federation container. When non-empty, replaces the global entirely.               |
-| `federation.serviceAccount.name`      | string | `""`                                                                                              | ServiceAccount name for the federation service. Defaults to `<fullname>-federation`.                                                      |
-| `federation.service.type`             | string | `ClusterIP`                                                                                       | Service type                                                                                                                              |
-| `federation.service.port`             | int    | `5001`                                                                                            | Service port                                                                                                                              |
-| `federation.config.issuerUrl`         | string | `""`                                                                                              | **REQUIRED.** Public OIDC issuer URL. Must be stable and publicly reachable.                                                              |
-| `federation.config.port`              | int    | `5001`                                                                                            | Container port                                                                                                                            |
-| `federation.config.signingSecretName` | string | `kif-signing`                                                                                     | Name of the Secret for the signing key pair                                                                                               |
-| `federation.config.jwksSecretName`    | string | `kif-jwks`                                                                                        | Name of the Secret for the public JWKS. Also used by the issuer.                                                                          |
-| `issuer.replicaCount`                 | int    | `1`                                                                                               | Number of issuer replicas                                                                                                                 |
-| `issuer.image`                        | object | `{}`                                                                                              | Per-service image overrides                                                                                                               |
-| `issuer.podAnnotations`               | object | `{}`                                                                                              | Annotations added to each issuer Pod                                                                                                      |
-| `issuer.podLabels`                    | object | `{}`                                                                                              | Extra labels added to each issuer Pod                                                                                                     |
-| `issuer.podSecurityContext`           | object | `{}`                                                                                              | Overrides the global `podSecurityContext` for issuer Pods. When non-empty, replaces the global entirely.                                  |
-| `issuer.containerSecurityContext`     | object | `{}`                                                                                              | Overrides the global `containerSecurityContext` for the issuer container. When non-empty, replaces the global entirely.                   |
-| `issuer.serviceAccount.name`          | string | `""`                                                                                              | ServiceAccount name for the issuer service. Defaults to `<fullname>-issuer`.                                                              |
-| `issuer.service.type`                 | string | `ClusterIP`                                                                                       | Service type. Expose via ingress or LoadBalancer for public access.                                                                       |
-| `issuer.service.port`                 | int    | `5002`                                                                                            | Service port                                                                                                                              |
-| `issuer.config.port`                  | int    | `5002`                                                                                            | Container port                                                                                                                            |
-| `webhook.replicaCount`                | int    | `1`                                                                                               | Number of webhook replicas                                                                                                                |
-| `webhook.image`                       | object | `{}`                                                                                              | Per-service image overrides                                                                                                               |
-| `webhook.podAnnotations`              | object | `{}`                                                                                              | Annotations added to each webhook Pod                                                                                                     |
-| `webhook.podLabels`                   | object | `{}`                                                                                              | Extra labels added to each webhook Pod                                                                                                    |
-| `webhook.podSecurityContext`          | object | `{}`                                                                                              | Overrides the global `podSecurityContext` for webhook Pods. When non-empty, replaces the global entirely.                                 |
-| `webhook.containerSecurityContext`    | object | `{}`                                                                                              | Overrides the global `containerSecurityContext` for the webhook container. When non-empty, replaces the global entirely.                  |
-| `webhook.serviceAccount.name`         | string | `""`                                                                                              | ServiceAccount name for the webhook service. Defaults to `<fullname>-webhook`.                                                            |
-| `webhook.service.port`                | int    | `443`                                                                                             | Port the webhook Service exposes to the API server                                                                                        |
-| `webhook.config.admissionFailureMode` | string | `Fail`                                                                                            | Admission failure mode: `Fail` (deny pod) or `Ignore` (allow with warning)                                                                |
-| `webhook.config.reconcileWorkers`     | int    | `4`                                                                                               | Number of reconciliation workers                                                                                                          |
-| `webhook.config.port`                 | int    | `9443`                                                                                            | HTTPS port for the admission webhook server                                                                                               |
-| `webhook.config.healthPort`           | int    | `5003`                                                                                            | HTTP port for liveness/startup probes                                                                                                     |
-| `webhook.tls.secretName`              | string | `""`                                                                                              | Name of the Secret containing `tls.crt` and `tls.key`. Defaults to `<fullname>-webhook-tls`.                                              |
-| `webhook.tls.certManager.enabled`     | bool   | `true`                                                                                            | Use cert-manager to provision the webhook TLS certificate                                                                                 |
-| `webhook.tls.caBundle`                | string | `""`                                                                                              | Base64-encoded CA certificate for the `MutatingWebhookConfiguration`. Required when `certManager.enabled=false`.                          |
-| `agent.image`                         | object | `{}`                                                                                              | Per-service image overrides for the agent sidecar                                                                                         |
-| `agent.config.port`                   | int    | `5004`                                                                                            | Port the agent sidecar listens on                                                                                                         |
-| `agent.config.refreshSkewSeconds`     | int    | `300`                                                                                             | Seconds before token expiry to start refreshing                                                                                           |
-| `agent.config.minRefreshSeconds`      | int    | `30`                                                                                              | Minimum interval between refreshes                                                                                                        |
-| `agent.config.maxJitterSeconds`       | int    | `60`                                                                                              | Maximum random jitter added to refresh interval                                                                                           |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `fullnameOverride` | string | `""` | Override the fully-qualified resource name prefix. Defaults to the release name. |
+| `crds.install` | bool | `true` | Install CRD resources as part of this chart |
+| `crds.keep` | bool | `true` | Prevent CRDs from being deleted when the release is uninstalled (`helm.sh/resource-policy: keep`) |
+| `image.repository` | string | `quay.io/laconc` | Image registry and repository prefix |
+| `image.tag` | string | `latest` | Image tag applied to all services unless overridden |
+| `image.pullPolicy` | string | `IfNotPresent` | Image pull policy applied to all services unless overridden per-service |
+| `imagePullSecrets` | list | `[]` | Image pull secrets applied to all Pods. Per-service `imagePullSecrets` replaces this entirely when non-empty. |
+| `podSecurityContext` | object | `{runAsNonRoot: true, runAsUser: 2000, runAsGroup: 2000, seccompProfile: {type: RuntimeDefault}}` | Pod-level security context applied to all Deployments. Per-service `podSecurityContext` replaces this entirely when non-empty. |
+| `containerSecurityContext` | object | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}` | Container-level security context applied to all containers. Per-service `containerSecurityContext` replaces this entirely when non-empty. |
+| `federation.replicaCount` | int | `1` | Number of federation replicas. Ignored when `federation.autoscaling.enabled=true`. |
+| `federation.image` | object | `{}` | Per-service image overrides. Keys: `repository`, `tag`, `pullPolicy`. |
+| `federation.podAnnotations` | object | `{}` | Annotations added to each federation Pod |
+| `federation.podLabels` | object | `{}` | Extra labels added to each federation Pod |
+| `federation.podSecurityContext` | object | `{}` | Overrides the global `podSecurityContext` for federation Pods. When non-empty, replaces the global entirely. |
+| `federation.containerSecurityContext` | object | `{}` | Overrides the global `containerSecurityContext` for the federation container. When non-empty, replaces the global entirely. |
+| `federation.imagePullSecrets` | list | `[]` | Per-service image pull secrets. Overrides global `imagePullSecrets` when non-empty. |
+| `federation.resources` | object | `{}` | Container resource requests and limits. |
+| `federation.affinity` | object | `{}` | Node affinity / anti-affinity rules for federation Pods. |
+| `federation.tolerations` | list | `[]` | Tolerations for federation Pods. |
+| `federation.topologySpreadConstraints` | list | `[]` | Topology spread constraints for federation Pods. |
+| `federation.autoscaling.enabled` | bool | `false` | Enable the HorizontalPodAutoscaler. When enabled, `replicaCount` is ignored. |
+| `federation.autoscaling.minReplicas` | int | `1` | Minimum replicas for the HPA. |
+| `federation.autoscaling.maxReplicas` | int | `5` | Maximum replicas for the HPA. |
+| `federation.autoscaling.metrics` | list | CPU utilization at 80% | Metrics used by the HPA. |
+| `federation.podDisruptionBudget.enabled` | bool | `false` | Enable the PodDisruptionBudget. |
+| `federation.podDisruptionBudget.minAvailable` | int | `1` | Minimum available replicas. Mutually exclusive with `maxUnavailable`. |
+| `federation.podDisruptionBudget.maxUnavailable` | int | — | Maximum unavailable replicas. Commented out by default; set to use instead of `minAvailable`. |
+| `federation.serviceAccount.name` | string | `""` | ServiceAccount name for the federation service. Defaults to `<fullname>-federation`. |
+| `federation.service.type` | string | `ClusterIP` | Service type |
+| `federation.service.port` | int | `5001` | Service port |
+| `federation.livenessProbe.failureThreshold` | int | `3` | Consecutive failures before the container is restarted. |
+| `federation.livenessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the liveness probe. |
+| `federation.readinessProbe.failureThreshold` | int | `3` | Consecutive failures before the Pod is removed from Service endpoints. |
+| `federation.readinessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the readiness probe. |
+| `federation.config.issuerUrl` | string | `""` | **REQUIRED.** Public OIDC issuer URL. Must be stable and publicly reachable. |
+| `federation.config.port` | int | `5001` | Container port |
+| `federation.config.signingSecretName` | string | `kif-signing` | Name of the Secret for the signing key pair |
+| `federation.config.jwksSecretName` | string | `kif-jwks` | Name of the Secret for the public JWKS. Also used by the issuer. |
+| `issuer.replicaCount` | int | `1` | Number of issuer replicas. Ignored when `issuer.autoscaling.enabled=true`. |
+| `issuer.image` | object | `{}` | Per-service image overrides. Keys: `repository`, `tag`, `pullPolicy`. |
+| `issuer.podAnnotations` | object | `{}` | Annotations added to each issuer Pod |
+| `issuer.podLabels` | object | `{}` | Extra labels added to each issuer Pod |
+| `issuer.podSecurityContext` | object | `{}` | Overrides the global `podSecurityContext` for issuer Pods. When non-empty, replaces the global entirely. |
+| `issuer.containerSecurityContext` | object | `{}` | Overrides the global `containerSecurityContext` for the issuer container. When non-empty, replaces the global entirely. |
+| `issuer.imagePullSecrets` | list | `[]` | Per-service image pull secrets. Overrides global `imagePullSecrets` when non-empty. |
+| `issuer.resources` | object | `{}` | Container resource requests and limits. |
+| `issuer.affinity` | object | `{}` | Node affinity / anti-affinity rules for issuer Pods. |
+| `issuer.tolerations` | list | `[]` | Tolerations for issuer Pods. |
+| `issuer.topologySpreadConstraints` | list | `[]` | Topology spread constraints for issuer Pods. |
+| `issuer.autoscaling.enabled` | bool | `false` | Enable the HorizontalPodAutoscaler. When enabled, `replicaCount` is ignored. |
+| `issuer.autoscaling.minReplicas` | int | `1` | Minimum replicas for the HPA. |
+| `issuer.autoscaling.maxReplicas` | int | `5` | Maximum replicas for the HPA. |
+| `issuer.autoscaling.metrics` | list | CPU utilization at 80% | Metrics used by the HPA. |
+| `issuer.podDisruptionBudget.enabled` | bool | `false` | Enable the PodDisruptionBudget. |
+| `issuer.podDisruptionBudget.minAvailable` | int | `1` | Minimum available replicas. Mutually exclusive with `maxUnavailable`. |
+| `issuer.podDisruptionBudget.maxUnavailable` | int | — | Maximum unavailable replicas. Commented out by default; set to use instead of `minAvailable`. |
+| `issuer.serviceAccount.name` | string | `""` | ServiceAccount name for the issuer service. Defaults to `<fullname>-issuer`. |
+| `issuer.service.type` | string | `ClusterIP` | Service type. Expose via ingress or LoadBalancer for public access. |
+| `issuer.service.port` | int | `5002` | Service port |
+| `issuer.livenessProbe.failureThreshold` | int | `3` | Consecutive failures before the container is restarted. |
+| `issuer.livenessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the liveness probe. |
+| `issuer.readinessProbe.failureThreshold` | int | `3` | Consecutive failures before the Pod is removed from Service endpoints. |
+| `issuer.readinessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the readiness probe. |
+| `issuer.startupProbe.failureThreshold` | int | `30` | Consecutive failures before the container is considered failed to start. |
+| `issuer.startupProbe.periodSeconds` | int | `5` | How often (seconds) to perform the startup probe. |
+| `issuer.config.port` | int | `5002` | Container port |
+| `webhook.replicaCount` | int | `1` | Number of webhook replicas. Ignored when `webhook.autoscaling.enabled=true`. |
+| `webhook.image` | object | `{}` | Per-service image overrides. Keys: `repository`, `tag`, `pullPolicy`. |
+| `webhook.podAnnotations` | object | `{}` | Annotations added to each webhook Pod |
+| `webhook.podLabels` | object | `{}` | Extra labels added to each webhook Pod |
+| `webhook.podSecurityContext` | object | `{}` | Overrides the global `podSecurityContext` for webhook Pods. When non-empty, replaces the global entirely. |
+| `webhook.containerSecurityContext` | object | `{}` | Overrides the global `containerSecurityContext` for the webhook container. When non-empty, replaces the global entirely. |
+| `webhook.imagePullSecrets` | list | `[]` | Per-service image pull secrets. Overrides global `imagePullSecrets` when non-empty. |
+| `webhook.resources` | object | `{}` | Container resource requests and limits. |
+| `webhook.affinity` | object | `{}` | Node affinity / anti-affinity rules for webhook Pods. |
+| `webhook.tolerations` | list | `[]` | Tolerations for webhook Pods. |
+| `webhook.topologySpreadConstraints` | list | `[]` | Topology spread constraints for webhook Pods. |
+| `webhook.autoscaling.enabled` | bool | `false` | Enable the HorizontalPodAutoscaler. When enabled, `replicaCount` is ignored. |
+| `webhook.autoscaling.minReplicas` | int | `1` | Minimum replicas for the HPA. |
+| `webhook.autoscaling.maxReplicas` | int | `5` | Maximum replicas for the HPA. |
+| `webhook.autoscaling.metrics` | list | CPU utilization at 80% | Metrics used by the HPA. |
+| `webhook.podDisruptionBudget.enabled` | bool | `false` | Enable the PodDisruptionBudget. |
+| `webhook.podDisruptionBudget.minAvailable` | int | `1` | Minimum available replicas. Mutually exclusive with `maxUnavailable`. |
+| `webhook.podDisruptionBudget.maxUnavailable` | int | — | Maximum unavailable replicas. Commented out by default; set to use instead of `minAvailable`. |
+| `webhook.serviceAccount.name` | string | `""` | ServiceAccount name for the webhook service. Defaults to `<fullname>-webhook`. |
+| `webhook.service.port` | int | `443` | Port the webhook Service exposes to the API server |
+| `webhook.livenessProbe.failureThreshold` | int | `3` | Consecutive failures before the container is restarted. |
+| `webhook.livenessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the liveness probe. |
+| `webhook.readinessProbe.failureThreshold` | int | `3` | Consecutive failures before the Pod is removed from Service endpoints. |
+| `webhook.readinessProbe.periodSeconds` | int | `10` | How often (seconds) to perform the readiness probe. |
+| `webhook.startupProbe.failureThreshold` | int | `30` | Consecutive failures before the container is considered failed to start. |
+| `webhook.startupProbe.periodSeconds` | int | `5` | How often (seconds) to perform the startup probe. |
+| `webhook.config.admissionFailureMode` | string | `Fail` | Admission failure mode: `Fail` (deny pod) or `Ignore` (allow with warning) |
+| `webhook.config.reconcileWorkers` | int | `4` | Number of reconciliation workers |
+| `webhook.config.port` | int | `9443` | HTTPS port for the admission webhook server |
+| `webhook.config.healthPort` | int | `5003` | HTTP port for liveness/startup probes |
+| `webhook.tls.secretName` | string | `""` | Name of the Secret containing `tls.crt` and `tls.key`. Defaults to `<fullname>-webhook-tls`. |
+| `webhook.tls.certManager.enabled` | bool | `true` | Use cert-manager to provision the webhook TLS certificate |
+| `webhook.tls.caBundle` | string | `""` | Base64-encoded CA certificate for the `MutatingWebhookConfiguration`. Required when `certManager.enabled=false`. |
+| `agent.image` | object | `{}` | Per-service image overrides for the agent sidecar. Keys: `repository`, `tag`, `pullPolicy`. |
+| `agent.config.port` | int | `5004` | Port the agent sidecar listens on |
+| `agent.config.refreshSkewSeconds` | int | `300` | Seconds before token expiry to start refreshing |
+| `agent.config.minRefreshSeconds` | int | `30` | Minimum interval between refreshes |
+| `agent.config.maxJitterSeconds` | int | `60` | Maximum random jitter added to refresh interval |

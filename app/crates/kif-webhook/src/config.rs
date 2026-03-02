@@ -18,6 +18,7 @@ pub struct WebhookConfig {
     pub admission_failure_mode: AdmissionFailureMode,
 
     pub agent_image: String,
+    pub agent_image_pull_policy: String,
     pub agent_port: u16,
     pub federation_url: String,
 
@@ -57,6 +58,8 @@ impl WebhookConfig {
             let tag = env::var("AGENT_IMAGE_TAG").unwrap_or("latest".to_string());
             format!("kif-agent:{tag}")
         });
+        let agent_image_pull_policy =
+            env::var("AGENT_IMAGE_PULL_POLICY").unwrap_or_else(|_| "IfNotPresent".to_string());
         let agent_port = env::var("AGENT_PORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -78,6 +81,7 @@ impl WebhookConfig {
             tls_key_path,
             admission_failure_mode,
             agent_image,
+            agent_image_pull_policy,
             agent_port,
             federation_url,
             reconcile_workers,

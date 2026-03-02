@@ -1,0 +1,19 @@
+{{- if .Values.federation.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "kif.fullname" . }}-federation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: federation
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "kif.fullname" . }}-federation
+  minReplicas: {{ .Values.federation.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.federation.autoscaling.maxReplicas }}
+  metrics:
+    {{- toYaml .Values.federation.autoscaling.metrics | nindent 4 }}
+{{- end }}

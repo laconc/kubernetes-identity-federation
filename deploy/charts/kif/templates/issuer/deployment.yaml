@@ -31,18 +31,54 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ .Values.issuer.serviceAccount.name | default (printf "%s-issuer" (include "kif.fullname" .)) }}
+      {{- $ips := .Values.issuer.imagePullSecrets | default .Values.imagePullSecrets }}
+      {{- with $ips }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml $psc | nindent 8 }}
+      {{- with .Values.issuer.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.issuer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.issuer.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: issuer
           image: {{ printf "%s/kif-issuer:%s" $imgRepo $imgTag }}
           imagePullPolicy: {{ $pullPolicy }}
           securityContext:
             {{- toYaml $csc | nindent 12 }}
+          {{- with .Values.issuer.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.issuer.config.port }}
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- toYaml .Values.issuer.livenessProbe | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- toYaml .Values.issuer.readinessProbe | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port: http
+            {{- toYaml .Values.issuer.startupProbe | nindent 12 }}
           envFrom:
             - configMapRef:
                 name: {{ include "kif.fullname" . }}-issuer-config

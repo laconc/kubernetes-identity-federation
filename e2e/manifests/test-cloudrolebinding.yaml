@@ -1,0 +1,12 @@
+apiVersion: 64f.dev/v1alpha1
+kind: CloudRoleBinding
+metadata:
+  name: test-app
+  namespace: apps
+spec:
+  subject:
+    serviceAccountName: test-app
+  providers:
+    aws:
+      roleArn: "arn:aws:iam::000000000000:role/test-role"
+      region: us-east-1

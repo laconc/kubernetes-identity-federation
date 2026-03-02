@@ -16,6 +16,9 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
+# -- Image pull secrets applied to all Pods. Per-service imagePullSecrets replaces this entirely when non-empty.
+imagePullSecrets: []
+
 # -- Pod-level security context applied to all Deployments. Per-service podSecurityContext overrides this.
 podSecurityContext:
   runAsNonRoot: true
@@ -45,6 +48,35 @@ federation:
   podSecurityContext: {}
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
+  # -- Per-service image pull secrets. Overrides global imagePullSecrets when non-empty.
+  imagePullSecrets: []
+  # -- Container resource requests and limits.
+  resources: {}
+  # -- Node affinity / anti-affinity rules.
+  affinity: {}
+  # -- Tolerations for the Pods.
+  tolerations: []
+  # -- Topology spread constraints for the Pods.
+  topologySpreadConstraints: []
+  autoscaling:
+    # -- Enable the HorizontalPodAutoscaler. When enabled, replicaCount is ignored.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Metrics used by the HPA. See https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+  podDisruptionBudget:
+    # -- Enable the PodDisruptionBudget.
+    enabled: false
+    # -- Minimum available replicas. Mutually exclusive with maxUnavailable.
+    minAvailable: 1
+    # maxUnavailable: 1
   serviceAccount:
     # -- ServiceAccount name for the federation service. Defaults to <fullname>-federation.
     name: ""
@@ -53,6 +85,16 @@ federation:
     type: ClusterIP
     # -- Service port
     port: 5001
+  livenessProbe:
+    # -- Number of consecutive failures before the container is restarted.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
+  readinessProbe:
+    # -- Number of consecutive failures before the pod is removed from Service endpoints.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
   config:
     # -- REQUIRED. Public OIDC issuer URL (e.g. https://oidc.example.com). Must be stable and publicly reachable.
     issuerUrl: ""
@@ -76,6 +118,35 @@ issuer:
   podSecurityContext: {}
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
+  # -- Per-service image pull secrets. Overrides global imagePullSecrets when non-empty.
+  imagePullSecrets: []
+  # -- Container resource requests and limits.
+  resources: {}
+  # -- Node affinity / anti-affinity rules.
+  affinity: {}
+  # -- Tolerations for the Pods.
+  tolerations: []
+  # -- Topology spread constraints for the Pods.
+  topologySpreadConstraints: []
+  autoscaling:
+    # -- Enable the HorizontalPodAutoscaler. When enabled, replicaCount is ignored.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Metrics used by the HPA. See https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+  podDisruptionBudget:
+    # -- Enable the PodDisruptionBudget.
+    enabled: false
+    # -- Minimum available replicas. Mutually exclusive with maxUnavailable.
+    minAvailable: 1
+    # maxUnavailable: 1
   serviceAccount:
     # -- ServiceAccount name for the issuer service. Defaults to <fullname>-issuer.
     name: ""
@@ -84,6 +155,21 @@ issuer:
     type: ClusterIP
     # -- Service port
     port: 5002
+  livenessProbe:
+    # -- Number of consecutive failures before the container is restarted.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
+  readinessProbe:
+    # -- Number of consecutive failures before the pod is removed from Service endpoints.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
+  startupProbe:
+    # -- Number of consecutive failures before the container is considered failed to start.
+    failureThreshold: 30
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 5
   config:
     # -- Container port
     port: 5002
@@ -101,12 +187,56 @@ webhook:
   podSecurityContext: {}
   # -- Overrides the global containerSecurityContext. When non-empty, replaces the global entirely.
   containerSecurityContext: {}
+  # -- Per-service image pull secrets. Overrides global imagePullSecrets when non-empty.
+  imagePullSecrets: []
+  # -- Container resource requests and limits.
+  resources: {}
+  # -- Node affinity / anti-affinity rules.
+  affinity: {}
+  # -- Tolerations for the Pods.
+  tolerations: []
+  # -- Topology spread constraints for the Pods.
+  topologySpreadConstraints: []
+  autoscaling:
+    # -- Enable the HorizontalPodAutoscaler. When enabled, replicaCount is ignored.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Metrics used by the HPA. See https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+  podDisruptionBudget:
+    # -- Enable the PodDisruptionBudget.
+    enabled: false
+    # -- Minimum available replicas. Mutually exclusive with maxUnavailable.
+    minAvailable: 1
+    # maxUnavailable: 1
   serviceAccount:
     # -- ServiceAccount name for the webhook service. Defaults to <fullname>-webhook.
     name: ""
   service:
     # -- Port the webhook Service exposes to the API server
     port: 443
+  livenessProbe:
+    # -- Number of consecutive failures before the container is restarted.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
+  readinessProbe:
+    # -- Number of consecutive failures before the pod is removed from Service endpoints.
+    failureThreshold: 3
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 10
+  startupProbe:
+    # -- Number of consecutive failures before the container is considered failed to start.
+    failureThreshold: 30
+    # -- How often (in seconds) to perform the probe.
+    periodSeconds: 5
   config:
     # -- Admission failure mode: Fail (deny pod) or Ignore (allow with warning)
     admissionFailureMode: Fail

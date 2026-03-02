@@ -32,14 +32,35 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ .Values.webhook.serviceAccount.name | default (printf "%s-webhook" (include "kif.fullname" .)) }}
+      {{- $ips := .Values.webhook.imagePullSecrets | default .Values.imagePullSecrets }}
+      {{- with $ips }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml $psc | nindent 8 }}
+      {{- with .Values.webhook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: webhook
           image: {{ printf "%s/kif-webhook:%s" $imgRepo $imgTag }}
           imagePullPolicy: {{ $pullPolicy }}
           securityContext:
             {{- toYaml $csc | nindent 12 }}
+          {{- with .Values.webhook.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: https
               containerPort: {{ .Values.webhook.config.port }}
@@ -54,12 +75,17 @@ spec:
             httpGet:
               path: /livez
               port: health
+            {{- toYaml .Values.webhook.livenessProbe | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /livez
+              port: health
+            {{- toYaml .Values.webhook.readinessProbe | nindent 12 }}
           startupProbe:
             httpGet:
               path: /startupz
               port: health
-            failureThreshold: 30
-            periodSeconds: 5
+            {{- toYaml .Values.webhook.startupProbe | nindent 12 }}
           volumeMounts:
             - name: tls
               mountPath: /tls

@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-sts
+  namespace: apps
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: test-app
+      restartPolicy: Never
+      containers:
+        - name: sts-check
+          image: amazon/aws-cli:2.34.0
+          env:
+            - name: AWS_REGION
+              value: us-east-1
+            # AWS_ROLE_ARN and AWS_WEB_IDENTITY_TOKEN_FILE are injected by the webhook.
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for KIF token..."
+              until [ -s "${AWS_WEB_IDENTITY_TOKEN_FILE}" ]; do sleep 2; done
+              echo "Token present. Calling STS..."
+              aws sts get-caller-identity \
+                --endpoint-url http://localstack.default.svc.cluster.local:4566

@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 IMAGE_TAG ?= latest
+IMAGE_PREFIX ?=
 BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_REF  := $(shell git rev-parse HEAD)
 GIT_REPO ?= $(shell git remote get-url origin)
@@ -21,30 +22,30 @@ BINARY_CACHE_ARGS =
 DEPS_CACHE_ARGS =
 endif
 
-.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) sign-images $(IMAGE_CRATES:%=sign-image-%) deps-cache crdgen lint test verify-crds
-
-build-image:
-	docker buildx build \
-		--build-arg BUILD_DATE=$(BUILD_DATE) \
-		--build-arg GIT_REF=$(GIT_REF) \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg BIN=$(BIN) \
-		$(BINARY_CACHE_ARGS) \
-		--load \
-		-t $(BIN):$(IMAGE_TAG) \
-		.
+.PHONY: build-images push-images sign-images deps-cache crdgen lint test verify-crds e2e e2e-setup e2e-teardown
 
 build-images:
 	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=build-image-%)
 
 build-image-%:
-	$(MAKE) build-image BIN=$*
+	docker buildx build \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg GIT_REF=$(GIT_REF) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg BIN=$* \
+		$(BINARY_CACHE_ARGS) \
+		--load \
+		-t $*:$(IMAGE_TAG) \
+		$(if $(IMAGE_PREFIX),-t $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)) \
+		.
 
 push-images:
 	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=push-image-%)
 
 push-image-%:
-	docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
+	@test -n "$(IMAGE_PREFIX)" || (echo "ERROR: IMAGE_PREFIX is required for push-images"; exit 1)
+	docker image inspect $(IMAGE_PREFIX)/$*:$(IMAGE_TAG) >/dev/null 2>&1 || \
+	  docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 	docker push $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 
 sign-images:
@@ -85,3 +86,12 @@ lint:
 
 test:
 	cd app && cargo test --workspace --all-targets
+
+e2e: e2e-setup
+	rc=0; ./e2e/run.sh || rc=$$?; $(MAKE) e2e-teardown; exit $$rc
+
+e2e-setup:
+	IMAGE_TAG=$(IMAGE_TAG) ./e2e/setup.sh
+
+e2e-teardown:
+	./e2e/teardown.sh

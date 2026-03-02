@@ -1,0 +1,20 @@
+{{- if .Values.federation.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "kif.fullname" . }}-federation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: federation
+spec:
+  selector:
+    matchLabels:
+      {{- include "kif.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: federation
+  {{- if .Values.federation.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.federation.podDisruptionBudget.minAvailable }}
+  {{- else if .Values.federation.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.federation.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+{{- end }}

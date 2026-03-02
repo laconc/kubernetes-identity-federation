@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: default
+  labels:
+    app: localstack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:4
+          ports:
+            - containerPort: 4566
+          env:
+            - name: SERVICES
+              value: "iam,sts,s3"
+            - name: DEFAULT_REGION
+              value: us-east-1
+            - name: DISABLE_CORS_CHECKS
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: /_localstack/health
+              port: 4566
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 24
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: default
+spec:
+  selector:
+    app: localstack
+  ports:
+    - port: 4566
+      targetPort: 4566
