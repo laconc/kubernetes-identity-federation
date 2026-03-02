@@ -159,7 +159,7 @@ jobs:
         run: make deps-cache GHA_CACHE=1
 
       - name: Build images
-        run: make build-images IMAGE_TAG=${{ env.IMAGE_TAG }} GHA_CACHE=1
+        run: make build-images IMAGE_TAG=${{ env.IMAGE_TAG }} GHA_CACHE=1 IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
 
       - name: Push images
         if: github.event_name == 'push'

@@ -22,6 +22,7 @@ pub fn pod_has_container(pod: &Pod, name: &str) -> bool {
             .any(|c| c.name == name)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_pod_patch(
     mut pod: Pod,
     agent_image: &str,

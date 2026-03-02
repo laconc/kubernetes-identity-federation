@@ -1692,6 +1692,7 @@ dependencies = [
  "kif-api",
  "kube",
  "kube-runtime",
+ "rustls",
  "serde_json",
  "sha2",
  "tokio",

@@ -31,18 +31,49 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ .Values.federation.serviceAccount.name | default (printf "%s-federation" (include "kif.fullname" .)) }}
+      {{- $ips := .Values.federation.imagePullSecrets | default .Values.imagePullSecrets }}
+      {{- with $ips }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml $psc | nindent 8 }}
+      {{- with .Values.federation.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.federation.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.federation.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: federation
           image: {{ printf "%s/kif-federation:%s" $imgRepo $imgTag }}
           imagePullPolicy: {{ $pullPolicy }}
           securityContext:
             {{- toYaml $csc | nindent 12 }}
+          {{- with .Values.federation.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.federation.config.port }}
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- toYaml .Values.federation.livenessProbe | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- toYaml .Values.federation.readinessProbe | nindent 12 }}
           envFrom:
             - configMapRef:
                 name: {{ include "kif.fullname" . }}-federation-config

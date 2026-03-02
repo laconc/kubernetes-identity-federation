@@ -1,0 +1,20 @@
+{{- if .Values.webhook.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "kif.fullname" . }}-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  selector:
+    matchLabels:
+      {{- include "kif.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: webhook
+  {{- if .Values.webhook.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.webhook.podDisruptionBudget.minAvailable }}
+  {{- else if .Values.webhook.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.webhook.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,19 @@
+{{- if .Values.issuer.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "kif.fullname" . }}-issuer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: issuer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "kif.fullname" . }}-issuer
+  minReplicas: {{ .Values.issuer.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.issuer.autoscaling.maxReplicas }}
+  metrics:
+    {{- toYaml .Values.issuer.autoscaling.metrics | nindent 4 }}
+{{- end }}

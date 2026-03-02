@@ -34,11 +34,10 @@ kubectl wait --for=condition=Available deployment --all \
 
 # ── 3. Build images + load into kind ──────────────────────────────────────
 echo "[setup] Building images (tag: $IMAGE_TAG)"
-make -C "$SCRIPT_DIR/.." build-images IMAGE_TAG="$IMAGE_TAG"
+make -C "$SCRIPT_DIR/.." build-images IMAGE_TAG="$IMAGE_TAG" IMAGE_PREFIX=localhost
 
 echo "[setup] Loading images into cluster $CLUSTER_NAME"
 for svc in kif-agent kif-federation kif-issuer kif-webhook; do
-  docker tag "${svc}:${IMAGE_TAG}" "localhost/${svc}:${IMAGE_TAG}"
   kind load docker-image "localhost/${svc}:${IMAGE_TAG}" --name "$CLUSTER_NAME"
 done
 

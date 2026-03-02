@@ -13,6 +13,7 @@ use std::sync::{Arc, atomic::AtomicBool};
 use anyhow::Result;
 use axum_server::tls_rustls::RustlsConfig;
 use kube::Client;
+use rustls::crypto::ring;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -20,6 +21,10 @@ use config::WebhookConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
