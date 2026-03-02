@@ -92,6 +92,7 @@ pub async fn handle(
     let patch = mutate::build_pod_patch(
         pod,
         &state.cfg.agent_image,
+        &state.cfg.agent_image_pull_policy,
         state.cfg.agent_port,
         &state.cfg.federation_url,
         &sa_name,

@@ -143,7 +143,6 @@ See the [chart README](deploy/charts/kif/README.md) for full installation instru
 
 ### TODOs
 
-* Integration tests through make using an ephemeral kind cluster, cert-manager, and localstack for AWS
 * Observability: publish metrics and traces, and improve our logging story
 * Federation service:
   * Introduce the key rotation logic
@@ -153,6 +152,7 @@ See the [chart README](deploy/charts/kif/README.md) for full installation instru
   * We should monitor the ResolvedCloudRoleBinding resources and recreate them if required
   * The ResolvedCloudRoleBinding should likely have an ownerReference to the ServiceAccount
 * Provide the ability to limit this service to a few namespaces (allow and deny list)
+  * It currently runs in every namespace except kube-system and the namespace it's released to
 * CI: tag images with semver and git sha
 * CI: Publish Helm chart to a registry
 * Azure and GCP support
@@ -166,6 +166,12 @@ See the [chart README](deploy/charts/kif/README.md) for full installation instru
 ```shell
 make lint
 make test
+```
+
+### Run end-to-end tests
+
+```shell
+make e2e
 ```
 
 ### Regenerate the CRD schemas

@@ -21,7 +21,7 @@ BINARY_CACHE_ARGS =
 DEPS_CACHE_ARGS =
 endif
 
-.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) sign-images $(IMAGE_CRATES:%=sign-image-%) deps-cache crdgen lint test verify-crds
+.PHONY: build-image build-images $(IMAGE_CRATES:%=build-image-%) push-images $(IMAGE_CRATES:%=push-image-%) sign-images $(IMAGE_CRATES:%=sign-image-%) deps-cache crdgen lint test verify-crds e2e e2e-setup e2e-teardown
 
 build-image:
 	docker buildx build \
@@ -85,3 +85,13 @@ lint:
 
 test:
 	cd app && cargo test --workspace --all-targets
+
+e2e: e2e-setup
+	./e2e/run.sh
+	$(MAKE) e2e-teardown
+
+e2e-setup:
+	IMAGE_TAG=$(IMAGE_TAG) ./e2e/setup.sh
+
+e2e-teardown:
+	./e2e/teardown.sh

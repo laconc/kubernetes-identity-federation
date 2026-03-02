@@ -14,7 +14,7 @@ permissions:
 
 env:
   IMAGE_PREFIX: quay.io/laconc
-  IMAGE_TAG: dev
+  IMAGE_TAG: latest
 
 jobs:
   lint:
@@ -74,6 +74,56 @@ jobs:
         timeout-minutes: 2
         run: make verify-crds
 
+  e2e:
+    runs-on: ubuntu-24.04
+    name: E2E Tests
+    needs:
+      - test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Run e2e setup
+        run: make e2e-setup IMAGE_TAG=kif-e2e
+        timeout-minutes: 15
+
+      - name: Run e2e tests
+        run: ./e2e/run.sh
+        timeout-minutes: 15
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -A || true
+          echo "=== Events ==="
+          kubectl get events -A --sort-by='.lastTimestamp' | tail -40 || true
+          echo "=== kif-federation logs ==="
+          kubectl logs -n kif deployment/kif-federation --tail=50 || true
+          echo "=== kif-issuer logs ==="
+          kubectl logs -n kif deployment/kif-issuer --tail=50 || true
+          echo "=== kif-webhook logs ==="
+          kubectl logs -n kif deployment/kif-webhook --tail=50 || true
+
+      - name: Teardown e2e cluster
+        if: always()
+        run: make e2e-teardown
+
   build-and-push:
     runs-on: ubuntu-24.04
     name: Build and push images
@@ -82,8 +132,8 @@ jobs:
       actions: write
       id-token: write
     needs:
+      - e2e
       - lint
-      - test
       - verify-crds
     steps:
       - name: Checkout

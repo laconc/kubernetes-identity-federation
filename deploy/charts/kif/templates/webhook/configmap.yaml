@@ -14,6 +14,7 @@ data:
   ADMISSION_FAILURE_MODE: {{ .Values.webhook.config.admissionFailureMode | lower | quote }}
   RECONCILE_WORKERS: {{ .Values.webhook.config.reconcileWorkers | quote }}
   AGENT_IMAGE: {{ include "kif.agentImage" . | quote }}
+  AGENT_IMAGE_PULL_POLICY: {{ .Values.agent.image.pullPolicy | default .Values.image.pullPolicy | quote }}
   AGENT_PORT: {{ .Values.agent.config.port | quote }}
   FEDERATION_SERVICE_HOST: {{ printf "http://%s-federation.%s.svc.cluster.local" (include "kif.fullname" .) .Release.Namespace | quote }}
   FEDERATION_SERVICE_PORT: {{ .Values.federation.service.port | quote }}

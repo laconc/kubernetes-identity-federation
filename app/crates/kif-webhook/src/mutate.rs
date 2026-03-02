@@ -25,6 +25,7 @@ pub fn pod_has_container(pod: &Pod, name: &str) -> bool {
 pub fn build_pod_patch(
     mut pod: Pod,
     agent_image: &str,
+    agent_image_pull_policy: &str,
     agent_port: u16,
     federation_url: &str,
     service_account_name: &str,
@@ -52,6 +53,7 @@ pub fn build_pod_patch(
     // before any of the other containers come up
     let agent = build_agent_container(
         agent_image,
+        agent_image_pull_policy,
         agent_port,
         federation_url,
         service_account_name,
@@ -147,6 +149,7 @@ fn ensure_aws_emptydir_volume(volumes: &mut Vec<Volume>) -> Result<()> {
 
 fn build_agent_container(
     agent_image: &str,
+    agent_image_pull_policy: &str,
     agent_port: u16,
     federation_url: &str,
     service_account_name: &str,
@@ -155,7 +158,7 @@ fn build_agent_container(
     let mut c = Container {
         name: "kif-agent".to_string(),
         image: Some(agent_image.to_string()),
-        image_pull_policy: Some("IfNotPresent".to_string()),
+        image_pull_policy: Some(agent_image_pull_policy.to_string()),
         restart_policy: Some("Always".to_string()),
         startup_probe: Some(Probe {
             http_get: Some(HTTPGetAction {
