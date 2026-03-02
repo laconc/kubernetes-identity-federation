@@ -43,6 +43,9 @@ push-images:
 	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=push-image-%)
 
 push-image-%:
+	@test -n "$(IMAGE_PREFIX)" || (echo "ERROR: IMAGE_PREFIX is required for push-images"; exit 1)
+	docker image inspect $(IMAGE_PREFIX)/$*:$(IMAGE_TAG) >/dev/null 2>&1 || \
+	  docker tag $*:$(IMAGE_TAG) $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 	docker push $(IMAGE_PREFIX)/$*:$(IMAGE_TAG)
 
 sign-images:

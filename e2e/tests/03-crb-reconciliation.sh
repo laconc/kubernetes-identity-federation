@@ -14,6 +14,11 @@ echo "Waiting for ResolvedCloudRoleBinding to be created (up to 60s)..."
 wait_for 60 "resolvedcloudrolebinding/test-app in apps" -- \
   kubectl get resolvedcloudrolebinding/test-app -n apps
 
+echo "Waiting for RCRB test-app to be Ready (up to 60s)..."
+kubectl wait resolvedcloudrolebinding/test-app -n apps \
+  --for=condition=Ready --timeout=60s
+log_pass "rcrb: test-app is Ready"
+
 # Fetch the RCRB and inspect
 RCRB=$(kubectl get resolvedcloudrolebinding/test-app -n apps -o json)
 

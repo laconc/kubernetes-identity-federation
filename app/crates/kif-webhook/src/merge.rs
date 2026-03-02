@@ -346,6 +346,13 @@ pub async fn upsert_resolved(
     )
     .await?;
 
+    api.patch_status(
+        name,
+        &PatchParams::apply("kif-webhook"),
+        &Patch::Apply(&resolved),
+    )
+    .await?;
+
     Ok(())
 }
 
