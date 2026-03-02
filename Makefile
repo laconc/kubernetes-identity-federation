@@ -85,8 +85,7 @@ test:
 	cd app && cargo test --workspace --all-targets
 
 e2e: e2e-setup
-	./e2e/run.sh
-	$(MAKE) e2e-teardown
+	rc=0; ./e2e/run.sh || rc=$$?; $(MAKE) e2e-teardown; exit $$rc
 
 e2e-setup:
 	IMAGE_TAG=$(IMAGE_TAG) ./e2e/setup.sh

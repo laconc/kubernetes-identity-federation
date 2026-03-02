@@ -30,8 +30,10 @@ spec:
   providers: {}
 EOF
 
-echo "Waiting for bad-app CRB to be reconciled (up to 30s)..."
-sleep 5
+echo "Waiting for bad-app RCRB to be reconciled (up to 30s)..."
+wait_for 30 "bad-app ResolvedCloudRoleBinding created" -- \
+  kubectl get resolvedcloudrolebinding bad-app -n apps
+log_pass "CRB reconciled: bad-app RCRB exists"
 
 # ── Attempt to create a pod using bad-app SA ──────────────────────────────
 echo "Attempting to create a pod with the bad-app SA (expecting rejection)..."

@@ -8,11 +8,12 @@ ISSUER_URL="http://kif-issuer.kif.svc.cluster.local:5002"
 
 # Use a temporary curl pod inside the cluster to hit the in-cluster issuer URL.
 CURL_POD="kif-e2e-curl"
+kubectl delete pod "$CURL_POD" -n default --ignore-not-found=true --wait=true 2>/dev/null || true
 kubectl run "$CURL_POD" \
   --image=curlimages/curl:8.11.0 \
   --restart=Never \
   --command -- sh -c "sleep 120" \
-  -n default 2>/dev/null || true
+  -n default
 
 echo "Waiting for curl pod..."
 kubectl wait pod/"$CURL_POD" -n default --for=condition=Ready --timeout=60s

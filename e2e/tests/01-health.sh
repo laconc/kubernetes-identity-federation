@@ -11,56 +11,20 @@ for deploy in kif-federation kif-issuer kif-webhook; do
 done
 
 echo "Checking /livez endpoints..."
-for deploy in kif-federation kif-issuer; do
-  POD=$(kubectl get pod -n kif -l "app.kubernetes.io/component=${deploy#kif-}" \
-    --no-headers -o custom-columns=NAME:.metadata.name | head -1)
-  STATUS=$(kubectl exec -n kif "$POD" -- \
-    wget -qO- --server-response http://localhost:5001/livez 2>&1 | grep "HTTP/" | awk '{print $2}' || \
-    kubectl exec -n kif "$POD" -- sh -c 'wget -qO- http://localhost:5001/livez && echo OK' 2>/dev/null | tail -1)
-  log_info "$deploy /livez check"
-done
-
-# Check each service's health endpoint using curl via kubectl exec
 check_livez() {
-  local deploy="$1" port="$2" component="$3"
-  local pod
-  pod=$(kubectl get pod -n kif -l "app.kubernetes.io/component=${component}" \
-    --no-headers -o custom-columns=NAME:.metadata.name | head -1)
-  if [[ -z "$pod" ]]; then
-    log_fail "$deploy: no pod found"
-    return
-  fi
+  local target="$1" local_port="$2" remote_port="$3"
+  kubectl port-forward -n kif "${target}" "${local_port}:${remote_port}" &>/dev/null &
+  local pf_pid=$!
+  sleep 2
   local http_code
-  http_code=$(kubectl exec -n kif "$pod" -- \
-    sh -c "wget -qO /dev/null -S http://localhost:${port}/livez 2>&1 | grep 'HTTP/' | awk '{print \$2}'" 2>/dev/null || echo "")
-  if [[ -z "$http_code" ]]; then
-    # Fallback: just check that wget exits 0
-    if kubectl exec -n kif "$pod" -- \
-        sh -c "wget -qO- http://localhost:${port}/livez" &>/dev/null; then
-      log_pass "$deploy /livez responded"
-    else
-      log_fail "$deploy /livez did not respond"
-    fi
-  else
-    assert_eq "200" "$http_code" "$deploy /livez HTTP 200"
-  fi
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${local_port}/livez") || true
+  kill "$pf_pid" 2>/dev/null || true
+  wait "$pf_pid" 2>/dev/null || true
+  assert_eq "200" "$http_code" "${target} /livez HTTP 200"
 }
 
-check_livez "kif-federation" "5001" "federation"
-check_livez "kif-issuer" "5002" "issuer"
-
-# Webhook health is on port 5003
-WEBHOOK_POD=$(kubectl get pod -n kif -l "app.kubernetes.io/component=webhook" \
-  --no-headers -o custom-columns=NAME:.metadata.name | head -1)
-if [[ -n "$WEBHOOK_POD" ]]; then
-  if kubectl exec -n kif "$WEBHOOK_POD" -- \
-      sh -c "wget -qO- http://localhost:5003/livez" &>/dev/null; then
-    log_pass "kif-webhook /livez responded"
-  else
-    log_fail "kif-webhook /livez did not respond"
-  fi
-else
-  log_fail "kif-webhook: no pod found"
-fi
+check_livez "svc/kif-federation" 15001 5001
+check_livez "svc/kif-issuer"     15002 5002
+check_livez "deploy/kif-webhook" 15003 5003
 
 print_summary
