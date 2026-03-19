@@ -37,7 +37,7 @@ pub async fn mint(
     client: &reqwest::Client,
     federation_url: &str,
     bearer_sa_token: &str,
-    req: MintRequest,
+    req: &MintRequest,
 ) -> Result<MintResponse, MintError> {
     let url = format!("{}/v1/mint", federation_url.trim_end_matches('/'));
 
@@ -164,7 +164,7 @@ mod tests {
             config_hash,
             pod_name: None,
         };
-        let resp = federation::mint(&client, &federation_url, &sa_token, req)
+        let resp = federation::mint(&client, &federation_url, &sa_token, &req)
             .await
             .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 

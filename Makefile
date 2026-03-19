@@ -9,6 +9,8 @@ VERSION := $(shell cd app; cargo metadata --no-deps --format-version=1 | jq -r '
 
 IMAGE_CRATES := kif-agent kif-federation kif-issuer kif-webhook
 
+LOCAL_CACHE_DIR ?= .cache
+
 ifdef GHA_CACHE
 BINARY_CACHE_ARGS = \
 	--cache-from type=gha,scope=deps \
@@ -18,16 +20,23 @@ DEPS_CACHE_ARGS = \
 	--cache-from type=gha,scope=deps \
 	--cache-to type=gha,mode=max,scope=deps
 else
-BINARY_CACHE_ARGS =
-DEPS_CACHE_ARGS =
+BINARY_CACHE_ARGS = \
+	--cache-from type=local,src=$(LOCAL_CACHE_DIR)/deps \
+	--cache-from type=local,src=$(LOCAL_CACHE_DIR)/$(BIN) \
+	--cache-to type=local,dest=$(LOCAL_CACHE_DIR)/$(BIN),mode=max
+DEPS_CACHE_ARGS = \
+	--cache-from type=local,src=$(LOCAL_CACHE_DIR)/deps \
+	--cache-to type=local,dest=$(LOCAL_CACHE_DIR)/deps,mode=max
 endif
 
 .PHONY: build-images push-images sign-images deps-cache crdgen lint test verify-crds e2e e2e-setup e2e-teardown
 
-build-images:
+build-images: deps-cache
 	$(MAKE) -j$(words $(IMAGE_CRATES)) $(IMAGE_CRATES:%=build-image-%)
 
+build-image-%: BIN = $*
 build-image-%:
+	@mkdir -p $(LOCAL_CACHE_DIR)
 	docker buildx build \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
 		--build-arg GIT_REF=$(GIT_REF) \
@@ -61,6 +70,7 @@ sign-image-%:
 		$(IMAGE_PREFIX)/$*:$(IMAGE_TAG)@$(DIGEST)
 
 deps-cache:
+	@mkdir -p $(LOCAL_CACHE_DIR)
 	docker buildx build \
 		--target deps \
 		$(DEPS_CACHE_ARGS) \

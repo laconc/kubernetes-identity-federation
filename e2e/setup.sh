@@ -16,6 +16,19 @@ IMAGE_TAG="${IMAGE_TAG:-kif-e2e}"
 CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.19.4}"
 LOCALSTACK_ENDPOINT="http://localhost:4566"
 
+# ── 0. Check dependencies ────────────────────────────────────────────────
+REQUIRED_CMDS=(kind kubectl helm docker aws curl)
+MISSING=()
+for cmd in "${REQUIRED_CMDS[@]}"; do
+  if ! command -v "$cmd" &>/dev/null; then
+    MISSING+=("$cmd")
+  fi
+done
+if (( ${#MISSING[@]} > 0 )); then
+  echo "[setup] ERROR: missing required tools: ${MISSING[*]}" >&2
+  exit 1
+fi
+
 # ── 1. Create kind cluster ─────────────────────────────────────────────────
 echo "[setup] Creating kind cluster: $CLUSTER_NAME"
 if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
