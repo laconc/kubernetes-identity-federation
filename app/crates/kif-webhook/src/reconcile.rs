@@ -11,7 +11,6 @@ use tokio::sync::mpsc;
 use tracing::warn;
 
 use crate::{
-    config::WebhookConfig,
     merge,
     queue::{Key, Queue},
 };
@@ -50,12 +49,12 @@ pub async fn watch_cloud_role_bindings(
 
 pub async fn run_workers(
     client: Client,
-    cfg: WebhookConfig,
+    workers: usize,
     rx: mpsc::Receiver<Key>,
     q: Queue,
 ) -> Result<()> {
     let rx = std::sync::Arc::new(tokio::sync::Mutex::new(rx));
-    let workers = cfg.reconcile_workers.max(1);
+    let workers = workers.max(1);
 
     let mut joins = vec![];
     for i in 0..workers {

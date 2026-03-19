@@ -5,8 +5,9 @@ mod kube_watch;
 
 use std::process::exit;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::Result;
 use tokio::net::TcpListener;
+use tokio::time::{Duration, Instant};
 use tracing::{error, info};
 
 use config::{AppState, IssuerConfig};
@@ -17,20 +18,46 @@ use kif_api::shared;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
         .init();
 
     let cfg = IssuerConfig::from_env()?;
     let store = JwksStore::new();
 
-    let path = cfg.jwks_file_path.clone();
-    let bytes = tokio::fs::read(&path)
-        .await
-        .context(anyhow!("failed to read JWKS_FILE_PATH={}", path))?;
-    let jwks = parse_jwks(bytes)?;
-    store.set(jwks).await;
+    let bind_addr = format!("0.0.0.0:{}", cfg.port);
+    let listener = TcpListener::bind(&bind_addr).await?;
+    info!(%bind_addr, "issuer server up");
 
-    info!(%path, "loaded JWKS from file");
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        match tokio::fs::read(&cfg.jwks_file_path).await {
+            Ok(bytes) => match parse_jwks(bytes) {
+                Ok(jwks) => {
+                    store.set(jwks).await;
+                    info!(jwks_path = %cfg.jwks_file_path, "loaded JWKS from file");
+                    break;
+                }
+                Err(e) => {
+                    error!("failed to parse JWKS from {}: {}", cfg.jwks_file_path, e);
+                    exit(1);
+                }
+            },
+            Err(e) => {
+                if Instant::now() < deadline {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                } else {
+                    error!(
+                        "failed to read JWKS_FILE_PATH={}: {}",
+                        cfg.jwks_file_path, e
+                    );
+                    exit(1);
+                }
+            }
+        }
+    }
 
     if cfg.running_in_cluster {
         let ns = shared::pod_namespace()?;
@@ -46,10 +73,6 @@ async fn main() -> Result<()> {
 
         info!("watching for JWKS secret changes");
     }
-
-    let bind_addr = format!("0.0.0.0:{}", cfg.port.clone());
-    let listener = TcpListener::bind(&bind_addr).await?;
-    info!(%bind_addr, "issuer server up");
 
     let state = AppState { cfg, jwks: store };
     axum::serve(listener, router(state)).await?;

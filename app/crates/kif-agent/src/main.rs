@@ -16,7 +16,10 @@ use federation::{MintError, MintRequest};
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
         .init();
 
     let cfg = AgentConfig::from_env()?;
@@ -30,9 +33,9 @@ async fn main() -> Result<()> {
     // We don't want to start the main containers until we have our minted tokens.
     let (ready_tx, ready_rx) = watch::channel(false);
 
-    let cfg_clone = cfg.clone();
+    let port = cfg.port;
     tokio::spawn(async move {
-        if let Err(e) = refresh_loop(cfg_clone, client, ready_tx).await {
+        if let Err(e) = refresh_loop(cfg, client, ready_tx).await {
             error!(error=?e, "refresh loop exited");
             exit(1);
         }
@@ -40,7 +43,7 @@ async fn main() -> Result<()> {
 
     let http_state = http::HttpState { ready_rx };
     let app = http::router(http_state);
-    let bind_addr = format!("0.0.0.0:{}", cfg.port);
+    let bind_addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&bind_addr).await?;
     info!(%bind_addr, "agent server up");
     axum::serve(listener, app).await?;
@@ -56,6 +59,13 @@ async fn refresh_loop(
     ready_tx: watch::Sender<bool>,
 ) -> Result<()> {
     let mut first_success = false;
+
+    let req = MintRequest {
+        namespace: cfg.namespace.clone(),
+        service_account_name: cfg.service_account_name.clone(),
+        config_hash: cfg.config_hash.clone(),
+        pod_name: cfg.pod_name.clone(),
+    };
 
     loop {
         let sa_token = match tokio::fs::read_to_string(&cfg.sa_token_path).await {
@@ -76,14 +86,7 @@ async fn refresh_loop(
             continue;
         }
 
-        let req = MintRequest {
-            namespace: cfg.namespace.clone(),
-            service_account_name: cfg.service_account_name.clone(),
-            config_hash: cfg.config_hash.clone(),
-            pod_name: cfg.pod_name.clone(),
-        };
-
-        match federation::mint(&client, &cfg.federation_url, &sa_token, req).await {
+        match federation::mint(&client, &cfg.federation_url, &sa_token, &req).await {
             Ok(resp) => {
                 if let Some(aws) = resp.aws {
                     federation::atomic_write(&cfg.aws_token_path, &aws.token).with_context(

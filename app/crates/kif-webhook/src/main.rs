@@ -15,19 +15,22 @@ use axum_server::tls_rustls::RustlsConfig;
 use kube::Client;
 use rustls::crypto::ring;
 use tokio::net::TcpListener;
-use tracing::info;
+use tracing::{info, warn};
 
 use config::WebhookConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    ring::default_provider()
-        .install_default()
-        .expect("Failed to install rustls crypto provider");
-
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
         .init();
+
+    if ring::default_provider().install_default().is_err() {
+        warn!("rustls crypto provider was already installed, skipping");
+    }
 
     let cfg = WebhookConfig::from_env()?;
     let client = Client::try_default().await?;
@@ -42,7 +45,7 @@ async fn main() -> Result<()> {
     ));
     tokio::spawn(reconcile::run_workers(
         client.clone(),
-        cfg.clone(),
+        cfg.reconcile_workers,
         rx,
         q.clone(),
     ));
@@ -64,10 +67,7 @@ async fn main() -> Result<()> {
     info!(%bind_addr, "admission server up");
 
     let tls = RustlsConfig::from_pem_file(&cfg.tls_cert_path, &cfg.tls_key_path).await?;
-    let app = http::admission_router(admission::AppState {
-        cfg: cfg.clone(),
-        client,
-    });
+    let app = http::admission_router(admission::AppState { cfg, client });
 
     axum_server::bind_rustls(bind_addr.parse::<SocketAddr>()?, tls)
         .serve(app.into_make_service())
