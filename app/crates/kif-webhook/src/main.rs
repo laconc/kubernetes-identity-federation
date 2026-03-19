@@ -55,7 +55,6 @@ async fn main() -> Result<()> {
         let bind_addr = format!("0.0.0.0:{}", cfg.health_port);
         let listener = TcpListener::bind(&bind_addr).await?;
         info!(%bind_addr, "health server up");
-
         tokio::spawn(async move {
             let app = http::health_router(ready);
             let _ = axum::serve(listener, app).await;
@@ -64,11 +63,9 @@ async fn main() -> Result<()> {
 
     // Admission webhook server
     let bind_addr = format!("0.0.0.0:{}", cfg.https_port);
-    info!(%bind_addr, "admission server up");
-
     let tls = RustlsConfig::from_pem_file(&cfg.tls_cert_path, &cfg.tls_key_path).await?;
     let app = http::admission_router(admission::AppState { cfg, client });
-
+    info!(%bind_addr, "admission server up");
     axum_server::bind_rustls(bind_addr.parse::<SocketAddr>()?, tls)
         .serve(app.into_make_service())
         .await?;

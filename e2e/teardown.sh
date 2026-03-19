@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tear down the e2e kind cluster. Always runs, even on test failure.
+# Tear down the e2e kind cluster.
 set -euo pipefail
 
 CLUSTER_NAME="${CLUSTER_NAME:-kif-e2e}"
