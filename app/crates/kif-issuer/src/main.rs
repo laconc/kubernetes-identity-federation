@@ -42,12 +42,19 @@ async fn main() -> Result<()> {
 
     info!(%bind_addr, "issuer server up");
 
+    // Serve in its own task so that a *successful* completion of the JWKS
+    // loader (when not running in-cluster there is nothing left to watch after
+    // the initial load) does not cancel the HTTP server. A failure in either
+    // task still brings the process down.
+    let mut server = tokio::spawn(async move { axum::serve(listener, router(state)).await });
+
     tokio::select! {
-        result = axum::serve(listener, router(state)) => {
-            result?;
+        result = &mut server => {
+            result??;
         }
         result = jwks_handle => {
             result??;
+            server.await??;
         }
     }
 

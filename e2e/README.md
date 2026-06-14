@@ -24,8 +24,8 @@ Requires: `kind`, `kubectl`, `helm`, `docker` (or a Docker-compatible engine),
 | 03-crb-reconciliation | a CloudRoleBinding reconciles into a Ready ResolvedCloudRoleBinding |
 | 04-webhook-mutation | bound pods get the kif-agent sidecar + AWS env injected |
 | 05-token-minting | the agent mints a valid OIDC token; claims are correct and the signing `kid` is published in the issuer JWKS |
-| 08-no-mutation-negative | pods with no binding are left unmodified |
-| 09-rejection-negative | a pod referencing an invalid binding is rejected |
+| 06-no-mutation-negative | pods with no binding are left unmodified |
+| 07-rejection-negative | a pod referencing an invalid binding is rejected |
 
 ## Why there is no live STS / S3 test
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test 09: With admissionFailureMode=Fail, a pod referencing a CRB with no
+# Test 07: With admissionFailureMode=Fail, a pod referencing a CRB with no
 # providers is rejected by the webhook.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

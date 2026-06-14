@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test 08: Pods using a SA without a CloudRoleBinding are left unmodified.
+# Test 06: Pods using a SA without a CloudRoleBinding are left unmodified.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"

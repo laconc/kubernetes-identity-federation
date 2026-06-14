@@ -20,7 +20,7 @@ assert_not_empty "$TOKEN" "token: file is non-empty"
 PAYLOAD_B64=$(echo "$TOKEN" | cut -d. -f2)
 # Pad base64url to a multiple of 4 characters for standard base64 decoding.
 PAD=$(( (4 - ${#PAYLOAD_B64} % 4) % 4 ))
-PADDING=$(printf '%0.s=' $(seq 1 "$PAD"))
+PADDING=$(printf '%*s' "$PAD" '' | tr ' ' '=')
 PAYLOAD=$(echo "${PAYLOAD_B64}${PADDING}" | tr '_-' '/+' | base64 -d 2>/dev/null || true)
 
 assert_not_empty "$PAYLOAD" "token: JWT payload decoded"
@@ -42,7 +42,7 @@ assert_contains "sts.amazonaws.com" "$PAYLOAD" "token: aud contains sts.amazonaw
 # key than the one kif-federation signs with.
 HEADER_B64=$(echo "$TOKEN" | cut -d. -f1)
 HPAD=$(( (4 - ${#HEADER_B64} % 4) % 4 ))
-HPADDING=$(printf '%0.s=' $(seq 1 "$HPAD"))
+HPADDING=$(printf '%*s' "$HPAD" '' | tr ' ' '=')
 HEADER=$(echo "${HEADER_B64}${HPADDING}" | tr '_-' '/+' | base64 -d 2>/dev/null || true)
 KID=$(echo "$HEADER" | grep -o '"kid":"[^"]*"' | cut -d'"' -f4 || true)
 assert_not_empty "$KID" "token: header has a kid"
