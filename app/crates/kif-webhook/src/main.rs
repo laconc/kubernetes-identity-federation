@@ -38,12 +38,12 @@ async fn main() -> Result<()> {
     // Work queue + controller
     let ready = Arc::new(AtomicBool::new(false));
     let (q, rx) = queue::Queue::new(2048);
-    tokio::spawn(reconcile::watch_cloud_role_bindings(
+    let watcher_handle = tokio::spawn(reconcile::watch_cloud_role_bindings(
         client.clone(),
         q.clone(),
         Arc::clone(&ready),
     ));
-    tokio::spawn(reconcile::run_workers(
+    let workers_handle = tokio::spawn(reconcile::run_workers(
         client.clone(),
         cfg.reconcile_workers,
         rx,
@@ -51,24 +51,35 @@ async fn main() -> Result<()> {
     ));
 
     // A simple server for the probes
-    {
-        let bind_addr = format!("0.0.0.0:{}", cfg.health_port);
-        let listener = TcpListener::bind(&bind_addr).await?;
-        info!(%bind_addr, "health server up");
-        tokio::spawn(async move {
-            let app = http::health_router(ready);
-            let _ = axum::serve(listener, app).await;
-        });
-    }
+    let health_bind_addr = format!("0.0.0.0:{}", cfg.health_port);
+    let health_listener = TcpListener::bind(&health_bind_addr).await?;
+    info!(bind_addr = %health_bind_addr, "health server up");
+    let health_handle = tokio::spawn(async move {
+        let app = http::health_router(ready);
+        axum::serve(health_listener, app).await
+    });
 
     // Admission webhook server
     let bind_addr = format!("0.0.0.0:{}", cfg.https_port);
     let tls = RustlsConfig::from_pem_file(&cfg.tls_cert_path, &cfg.tls_key_path).await?;
     let app = http::admission_router(admission::AppState { cfg, client });
     info!(%bind_addr, "admission server up");
-    axum_server::bind_rustls(bind_addr.parse::<SocketAddr>()?, tls)
-        .serve(app.into_make_service())
-        .await?;
+
+    tokio::select! {
+        result = axum_server::bind_rustls(bind_addr.parse::<SocketAddr>()?, tls)
+            .serve(app.into_make_service()) => {
+            result?;
+        }
+        result = watcher_handle => {
+            result??;
+        }
+        result = workers_handle => {
+            result??;
+        }
+        result = health_handle => {
+            result??;
+        }
+    }
 
     Ok(())
 }

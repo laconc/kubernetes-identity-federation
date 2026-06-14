@@ -19,16 +19,16 @@ kubectl wait resolvedcloudrolebinding/test-app -n apps \
   --for=condition=Ready --timeout=60s
 log_pass "rcrb: test-app is Ready"
 
-# Fetch the RCRB and inspect
-RCRB=$(kubectl get resolvedcloudrolebinding/test-app -n apps -o json)
+# Fetch and inspect RCRB fields via jsonpath (robust against JSON formatting).
+rcrb_field() { kubectl get resolvedcloudrolebinding/test-app -n apps -o jsonpath="$1"; }
 
-SA_NAME=$(echo "$RCRB" | grep -o '"serviceAccountName":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+SA_NAME=$(rcrb_field '{.spec.subject.serviceAccountName}')
 assert_eq "test-app" "$SA_NAME" "rcrb: subject.serviceAccountName"
 
-ROLE_ARN=$(echo "$RCRB" | grep -o '"roleArn":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+ROLE_ARN=$(rcrb_field '{.spec.providers.aws.roleArn}')
 assert_eq "arn:aws:iam::000000000000:role/test-role" "$ROLE_ARN" "rcrb: aws.roleArn"
 
-PROVIDERS_SUMMARY=$(echo "$RCRB" | grep -o '"providers":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+PROVIDERS_SUMMARY=$(rcrb_field '{.status.providers}')
 assert_contains "aws" "$PROVIDERS_SUMMARY" "rcrb: providers summary contains aws"
 
 print_summary

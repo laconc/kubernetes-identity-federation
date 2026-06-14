@@ -1,9 +1,13 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use axum::{Router, extract::State, http::StatusCode, routing::get};
-use tokio::sync::watch;
 
 #[derive(Clone)]
 pub struct HttpState {
-    pub ready_rx: watch::Receiver<bool>,
+    pub ready: Arc<AtomicBool>,
 }
 
 pub fn router(state: HttpState) -> Router {
@@ -18,7 +22,7 @@ async fn livez() -> StatusCode {
 }
 
 async fn startupz(State(state): State<HttpState>) -> StatusCode {
-    if *state.ready_rx.borrow() {
+    if state.ready.load(Ordering::Relaxed) {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE

@@ -10,7 +10,7 @@ rules:
     resources: ["cloudrolebindings", "cloudrolebindings/status"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["64f.dev"]
-    resources: ["resolvedcloudrolebindings"]
+    resources: ["resolvedcloudrolebindings", "resolvedcloudrolebindings/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
     resources: ["events"]

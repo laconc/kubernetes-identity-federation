@@ -4,7 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-ISSUER_URL="http://kif-issuer.kif.svc.cluster.local:5002"
+# Advertised issuer identity (https, as it appears in the discovery doc and token
+# `iss`). The pod serves plain HTTP in-cluster, so fetch over http.
+ISSUER_URL="https://kif-issuer.kif.svc.cluster.local:5002"
+ISSUER_FETCH_URL="http://kif-issuer.kif.svc.cluster.local:5002"
 
 # Use a temporary curl pod inside the cluster to hit the in-cluster issuer URL.
 CURL_POD="kif-e2e-curl"
@@ -25,7 +28,7 @@ run_curl() {
 
 # ── OIDC discovery ─────────────────────────────────────────────────────────
 echo "Fetching OIDC discovery document..."
-DISCOVERY=$(run_curl "${ISSUER_URL}/.well-known/openid-configuration")
+DISCOVERY=$(run_curl "${ISSUER_FETCH_URL}/.well-known/openid-configuration")
 
 ISSUER_FIELD=$(echo "$DISCOVERY" | grep -o '"issuer":"[^"]*"' | cut -d'"' -f4 || true)
 assert_eq "$ISSUER_URL" "$ISSUER_FIELD" "discovery: issuer field"
@@ -35,7 +38,7 @@ assert_contains "id_token_signing_alg_values_supported" "$DISCOVERY" "discovery:
 
 # ── JWKS ───────────────────────────────────────────────────────────────────
 echo "Fetching JWKS..."
-JWKS=$(run_curl "${ISSUER_URL}/jwks.json")
+JWKS=$(run_curl "${ISSUER_FETCH_URL}/jwks.json")
 
 assert_contains '"keys"' "$JWKS" "jwks: contains keys array"
 assert_contains '"RS256"' "$JWKS" "jwks: alg is RS256"

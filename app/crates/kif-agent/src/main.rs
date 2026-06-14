@@ -2,12 +2,15 @@ mod config;
 mod federation;
 mod http;
 
-use std::process::exit;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
 use rand::RngExt;
-use tokio::{net::TcpListener, sync::watch, time::sleep};
+use tokio::{net::TcpListener, time::sleep};
 use tracing::{error, info, warn};
 
 use config::AgentConfig;
@@ -31,22 +34,26 @@ async fn main() -> Result<()> {
 
     // Ready channel to signal when the first successful token mint has occurred, for readyz.
     // We don't want to start the main containers until we have our minted tokens.
-    let (ready_tx, ready_rx) = watch::channel(false);
+    let ready = Arc::new(AtomicBool::new(false));
 
     let port = cfg.port;
-    tokio::spawn(async move {
-        if let Err(e) = refresh_loop(cfg, client, ready_tx).await {
-            error!(error=?e, "refresh loop exited");
-            exit(1);
-        }
-    });
+    let refresh_handle = tokio::spawn(refresh_loop(cfg, client, Arc::clone(&ready)));
 
-    let http_state = http::HttpState { ready_rx };
+    let http_state = http::HttpState { ready };
     let app = http::router(http_state);
     let bind_addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&bind_addr).await?;
     info!(%bind_addr, "agent server up");
-    axum::serve(listener, app).await?;
+
+    tokio::select! {
+        result = axum::serve(listener, app) => {
+            result?;
+        }
+        result = refresh_handle => {
+            result??;
+        }
+    }
+
     Ok(())
 }
 
@@ -56,7 +63,7 @@ async fn main() -> Result<()> {
 async fn refresh_loop(
     cfg: AgentConfig,
     client: reqwest::Client,
-    ready_tx: watch::Sender<bool>,
+    ready: Arc<AtomicBool>,
 ) -> Result<()> {
     let mut first_success = false;
 
@@ -100,7 +107,7 @@ async fn refresh_loop(
 
                     if !first_success {
                         first_success = true;
-                        let _ = ready_tx.send(true);
+                        ready.store(true, Ordering::Relaxed);
                         info!("first token minted, I'm ready");
                     }
 
