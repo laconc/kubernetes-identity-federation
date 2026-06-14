@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM public.ecr.aws/docker/library/rust:1.93-alpine AS deps
+FROM public.ecr.aws/docker/library/rust:1.96-alpine AS deps
 
 WORKDIR /usr/src/app
 
 RUN addgroup -S appuser -g 2000 && \
     adduser -S -D -H -G appuser -u 2000 appuser
 
-RUN apk update && apk add build-base
+RUN apk add --no-cache build-base
 
 COPY ./app/Cargo.toml ./app/Cargo.lock ./
 COPY ./app/crates/kif-api/Cargo.toml        crates/kif-api/Cargo.toml
@@ -26,7 +26,7 @@ RUN mkdir -p crates/kif-api/src        && touch                 crates/kif-api/s
 # Fetch the dependencies and store them in their own layer
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release
+    cargo build --release --locked
 
 # Remove stub artifacts for local crates so the builder stage can recompile them
 # against real sources; external deps in target/release/deps are kept
@@ -43,7 +43,7 @@ COPY ./app ./
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release -p ${BIN}
+    cargo build --release --locked -p ${BIN}
 
 # ----------------
 FROM gcr.io/distroless/base:latest AS runtime
