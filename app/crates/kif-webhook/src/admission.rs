@@ -55,13 +55,13 @@ pub async fn handle(
     let resolved = match resolved_api.get_opt(&sa_name).await? {
         Some(r) => r,
         None => {
-            return fail_or_skip(
-                state,
-                &req,
-                pod_name,
-                format!("ResolvedCloudRoleBinding not found for {ns}/{sa_name}"),
-            )
-            .await;
+            // No binding for this ServiceAccount: the pod is not managed by kif.
+            // The webhook fires cluster-wide, so the overwhelming majority of
+            // pods have no CloudRoleBinding and must be admitted unchanged. This
+            // is distinct from a binding that exists but isn't usable yet (below),
+            // which honours the configured admission failure mode.
+            resp.allowed = true;
+            return Ok(resp.into_review());
         }
     };
 

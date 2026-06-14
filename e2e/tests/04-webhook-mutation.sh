@@ -16,9 +16,8 @@ wait_for 60 "test-pod scheduled" -- \
 POD_JSON=$(kubectl get pod test-pod -n apps -o json)
 
 # ── Init containers ────────────────────────────────────────────────────────
-INIT_NAME=$(echo "$POD_JSON" | \
-  grep -o '"initContainers":\[{"name":"[^"]*"' | \
-  grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+INIT_NAME=$(kubectl get pod test-pod -n apps \
+  -o jsonpath='{.spec.initContainers[0].name}' || true)
 assert_eq "kif-agent" "$INIT_NAME" "webhook: initContainers[0].name == kif-agent"
 
 # ── Volumes ────────────────────────────────────────────────────────────────

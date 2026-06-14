@@ -74,7 +74,7 @@ helm upgrade --install kif "$SCRIPT_DIR/../deploy/charts/kif" \
   --set image.repository=localhost \
   --set image.tag="$IMAGE_TAG" \
   --set image.pullPolicy=Never \
-  --set federation.config.issuerUrl=http://kif-issuer.kif.svc.cluster.local:5002
+  --set federation.config.issuerUrl=https://kif-issuer.kif.svc.cluster.local:5002
 
 echo "[setup] Waiting for kif deployments"
 for deploy in kif-federation kif-issuer kif-webhook; do
@@ -102,7 +102,11 @@ export AWS_DEFAULT_REGION=us-east-1
 export AWS_ENDPOINT_URL="$LOCALSTACK_ENDPOINT"
 export AWS_PAGER=""
 
-ISSUER_URL="http://kif-issuer.kif.svc.cluster.local:5002"
+# AWS STS requires OIDC issuers to be https. The issuer pod serves plain HTTP
+# in-cluster; in a real deployment it sits behind an https ingress/LB, so the
+# advertised issuer (and thus the token `iss`) is https. LocalStack validates
+# the scheme but does not dial the issuer, so this is sufficient here.
+ISSUER_URL="https://kif-issuer.kif.svc.cluster.local:5002"
 ROLE_NAME="test-role"
 SA_SUBJECT="system:serviceaccount:apps:test-app"
 BUCKET="kif-e2e-bucket"
